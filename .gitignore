@@ -1,0 +1,14 @@
+# Build output
+objs/
+WebServ
+WebServ-client
+
+# Debug / sanitizer artifacts
+*.dSYM/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
