@@ -3,11 +3,13 @@
 #include <iostream>
 #include <cstring>
 
+
+
 Server::Server(void) {
 	std::cout << BOLD_CYAN << "Server Default constructor called" << RESET << std::endl;
 }
 
-Server::Server(std::string name) : m_name(name) {
+Server::Server(std::string name) : _name(name) {
 	std::cout << BOLD_CYAN << "Server Name constructor called" << RESET << std::endl;
 }
 
@@ -19,7 +21,7 @@ Server::Server(const Server &src) {
 Server &Server::operator=(const Server &other) {
 	std::cout << BOLD_BLUE << "Server Copy assignment operator called" << RESET << std::endl;
 	if (this != &other)
-		m_name = other.m_name;
+		_name = other._name;
 	return (*this);
 }
 

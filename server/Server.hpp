@@ -3,14 +3,17 @@
 
 #include <string>
 #include <vector>
+#include <map>
 #include "Location.hpp"
 #include "Socket.hpp"
+#include "utils.hpp"
 
 class Server {
   private:
-	std::string				m_name;
-	std::vector<Location>	m_locations;
-	std::vector<Socket>		m_sockets;
+	std::string				_name;
+	std::vector<Location>	_locations;
+	std::vector<Socket>		_sockets;
+	std::map<e_codes, std::string> _error_pages; // LINKS ERROR CODES TO ACCORDING PAGES
 	// size_t					m_max_body_size; // TODO : Ajouter le cap body_size
 	// HOW TO STORE ERROR_PAGES (MAP ?)
 

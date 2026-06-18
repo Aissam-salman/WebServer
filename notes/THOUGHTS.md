@@ -5,7 +5,14 @@ Prendre en compte le fait de developper les classes avant de coder. Tu vas devoi
 * Decomposer en sous probleme, creeer des classes pour resoudre ce sous probleme et faire remonter le tout. 
 
 # 1 - INITIALISATION DU SERVEUR
+
+DECLARATION DU SERVEUR
+
+BIND DES PAGES D'ERREUR AUX PAGES CORRESPONDANTES :
+
+
 ## POUR LE FICHIER DE CONFIG
+
 ON PARCOURT LE FICHIER DE CONFIG LIGNE PAR LIGNE : 
 
 Exemple de fichier de config :

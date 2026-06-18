@@ -136,6 +136,8 @@ enum e_methods {
 	TRACE
 };
 
+bool    isValidKey(const std::string &key, const std::string keys_list[], const size_t size) ;
+void display(std::string print);
 
 
 #endif

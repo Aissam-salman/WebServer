@@ -2,18 +2,19 @@
 #include <cstring>
 #include <exception>
 #include <iostream>
-#include <sstream>
 #include <stdexcept>
 #include <sys/poll.h>
 #include <unistd.h>
 #include <signal.h>
-
 #include <netinet/in.h>
 #include <poll.h>
 #include <sys/socket.h>
 
+
+#include "utils.hpp"
 #include "Socket.hpp"
 #include "Server.hpp"
+#include "Lexer.hpp"
 
 
 using namespace std;
@@ -25,16 +26,21 @@ void signal_sigint(int) {
 	cerr << "SIGNAL RECEIVED" << endl;
 }
 
-void error(string error) { cerr << error << endl; }
 
-void display(string print) { cout << print << endl; }
-
-int main(void) {
+int main(int argc, char *argv[]) {
 	try {
+		if (argc != 2)
+			throw std::runtime_error ("Wrong number of argument ! Try with : ./webserv [config file path]\n");
 		// CREATING A SERVER LISTENING ON ONLY ONE PORT
 		// SETTING UP UTILS
 		Server serv("WebServTest");
+		Lexer lexer(argv[1]);
+		display("1ER PASSAGE");
+		lexer.printRawConfFile();
+		display("2EME PASSAGE");
+		lexer.printRawConfFile();
 		Socket socket1("SocketTest");
+
 		signal(SIGINT, signal_sigint);
 		int ret = 0;
 
@@ -96,9 +102,9 @@ int main(void) {
 
 	// ERROR MANAGEMENT
 	catch (runtime_error &e) {
-		error("RUNTIME ERROR");
+		std::cerr << RED << e.what() << endofline;
 	} catch (exception &e) {
-		error("EXCEPTION");
+		std::cerr << YELLOW << e.what() << endofline;
 	} catch (...) {
 		cerr << "FELL INTO THE PIT" << endl;
 	}
