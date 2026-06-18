@@ -20,6 +20,7 @@ class Server {
 	Server(const Server &src);
 	Server &operator=(const Server &other);
 	~Server();
+	
 };
 
 #endif
