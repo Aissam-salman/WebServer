@@ -86,6 +86,8 @@ int main(void) {
 				} else if (poll_fds[i].revents & ( POLLHUP | POLLERR)) {
 					cout << "SUPPRESSING POLL_FD " << poll_fds[i].fd << endl;
 					poll_fds.erase(poll_fds.begin() + i);
+				} else if (poll_fds[i].events & POLLOUT) {
+					//TODO: from client buffer, send response
 				}
 
 			}
