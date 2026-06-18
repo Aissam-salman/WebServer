@@ -33,12 +33,12 @@ int main(int argc, char *argv[]) {
 			throw std::runtime_error ("Wrong number of argument ! Try with : ./webserv [config file path]\n");
 		// CREATING A SERVER LISTENING ON ONLY ONE PORT
 		// SETTING UP UTILS
-		Server serv("WebServTest");
+			
 		Lexer lexer(argv[1]);
-		display("1ER PASSAGE");
-		lexer.printRawConfFile();
-		display("2EME PASSAGE");
-		lexer.printRawConfFile();
+		lexer.initTokensVector();
+		lexer.printTokens();
+
+		Server serv("WebServTest");
 		Socket socket1("SocketTest");
 
 		signal(SIGINT, signal_sigint);

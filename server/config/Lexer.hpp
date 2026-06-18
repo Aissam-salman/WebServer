@@ -2,53 +2,44 @@
 # define LEXER_HPP
 
 #include <string>
-
-#include <string>
 #include <vector>
 #include <fstream>
-// #include <sstream>
+#include <sstream>
 
-static const std::string GLOBAL_KEY[] =  {
-    "server"
+class Token {
+    private:
+        enum token_type { KEY, VALUE, SEPARATOR}; // Defines the different token types
+
+        std::string _value;
+        // token_type  _type;
+
+    public:
 };
-
-static const std::string SERVER_KEY[] = {
-    "listen", "server_name", "client_max_body_size",
-    "error_page", "location"
-};
-
-static const std::string LOCATION_KEY[] = {
-    "root", "index", "autoindex", "methods", "upload_dir",
-    "cgi", "return", "client_max_body_size"
-};
-
-// bool    isValidKey(const std::string &key, const std::string keys_list[], const size_t size) {
-//     for (size_t i = 0; i < size; i++) {
-//         if (keys_list[i] == key)
-//             return (true);
-//     }
-//     return (false);
-// }
-
 class Lexer {
     private:
-        // int                         _file_fd;
+        enum lexer_state { GLOBAL, SERVER, LOCATION}; // Defines the different states of the lexer / parser
+
+        lexer_state                 _state;
         std::string                 _raw_file_path;
         std::ifstream               _raw_conf_file;
         std::vector<std::string>    _raw_tokens_vector;
+        std::vector<Token>          _tokens_vector;
 
-    public:
-        Lexer(void);
-        Lexer(std::string conf_file_path);
+
+        // IGNORED CONSTRUCTORS
         Lexer(const Lexer &src);
         Lexer& operator= (const Lexer &other);
+
+    public:
+        Lexer(std::string conf_file_path);
         ~Lexer();
+
+        void    initRawVector(void); // Creates the raw string vector for each word / separator
+        void    initTokensVector(void); // Create the tokens with associated type
 
         // OUTPUTS / DEMOS
         void    printTokens(void) const ; 
         void    printRawConfFile(void) ; 
-        void    initTokensVector(void);
-
 
 };
 
