@@ -8,12 +8,15 @@
 
 class Token {
     private:
-        enum token_type { KEY, VALUE, SEPARATOR}; // Defines the different token types
+        enum token_type { GLOBAL_KEY, SERVER_KEY, LOCATION_KEY, VALUE, SEPARATOR, DEFAULT}; // Defines the different token types
 
         std::string _value;
-        // token_type  _type;
+        token_type  _type;
 
     public:
+        Token(std::string _value);
+        ~Token();
+        void printToken(void) const;
 };
 class Lexer {
     private:
@@ -38,8 +41,9 @@ class Lexer {
         void    initTokensVector(void); // Create the tokens with associated type
 
         // OUTPUTS / DEMOS
-        void    printTokens(void) const ; 
+        void    printRawTokens(void) const ; 
         void    printRawConfFile(void) ; 
+        void    printTokens(void) const ;
 
 };
 

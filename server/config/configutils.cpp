@@ -4,14 +4,14 @@
 #include "utils.hpp"
 #include "configutils.hpp"
 
-const std::string GLOBAL_KEY[] = { "server" };
-const size_t      GLOBAL_KEY_SIZE = sizeof(GLOBAL_KEY) / sizeof(GLOBAL_KEY[0]);
+const std::string GLOBAL_KEYS[] = { "server" };
+const size_t      GLOBAL_KEYS_SIZE = sizeof(GLOBAL_KEYS) / sizeof(GLOBAL_KEYS[0]);
 
-const std::string SERVER_KEY[] = { "listen", "server_name", "client_max_body_size", "error_page", "location" };
-const size_t      SERVER_KEY_SIZE = sizeof(SERVER_KEY) / sizeof(SERVER_KEY[0]);
+const std::string SERVER_KEYS[] = { "listen", "server_name", "client_max_body_size", "error_page", "location" };
+const size_t      SERVER_KEYS_SIZE = sizeof(SERVER_KEYS) / sizeof(SERVER_KEYS[0]);
 
-const std::string LOCATION_KEY[] = { "root", "index", "autoindex", "methods", "upload_dir", "cgi", "return", "client_max_body_size" };
-const size_t      LOCATION_KEY_SIZE = sizeof(LOCATION_KEY) / sizeof(LOCATION_KEY[0]);
+const std::string LOCATION_KEYS[] = { "root", "index", "autoindex", "methods", "upload_dir", "cgi", "return", "client_max_body_size" };
+const size_t      LOCATION_KEYS_SIZE = sizeof(LOCATION_KEYS) / sizeof(LOCATION_KEYS[0]);
 
 // bool	checkConfFilepath(std::string filepath) {
 // 	if (filepath.size() < 5)

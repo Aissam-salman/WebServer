@@ -35,6 +35,8 @@ int main(int argc, char *argv[]) {
 		// SETTING UP UTILS
 			
 		Lexer lexer(argv[1]);
+		lexer.initRawVector();
+		lexer.printRawTokens();
 		lexer.initTokensVector();
 		lexer.printTokens();
 

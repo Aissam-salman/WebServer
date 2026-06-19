@@ -4,14 +4,14 @@
 #include <string>
 #include <cstddef>
 
-extern const std::string GLOBAL_KEY[];
-extern const size_t      GLOBAL_KEY_SIZE;
+extern const std::string GLOBAL_KEYS[];
+extern const size_t      GLOBAL_KEYS_SIZE;
 
-extern const std::string SERVER_KEY[];
-extern const size_t      SERVER_KEY_SIZE;
+extern const std::string SERVER_KEYS[];
+extern const size_t      SERVER_KEYS_SIZE;
 
-extern const std::string LOCATION_KEY[];
-extern const size_t      LOCATION_KEY_SIZE;
+extern const std::string LOCATION_KEYS[];
+extern const size_t      LOCATION_KEYS_SIZE;
 
 // std::map<int, std::string> initErrorPages(void); // TODO : RAJOUTER NUMERO ERREUR AVEC PAGE
 #endif
