@@ -6,7 +6,7 @@
 /*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/18 18:29:37 by alamjada          #+#    #+#             */
-/*   Updated: 2026/06/19 21:10:48 by alamjada         ###   ########.fr       */
+/*   Updated: 2026/06/19 22:05:20 by alamjada         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,6 +20,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <algorithm>
 
 // std::string method;
 // std::string http_version;
@@ -60,29 +61,40 @@ void Cgi::run(void) {
   std::stringstream s(content_length_s);
   s >> ct;
 
-  std::vector<const char *> env;
+  std::vector<char *> envp;
+  std::vector<std::string> envString;
 
-  env.push_back(
-      std::string("REQUEST_METHOD=")
-        .append(_request.getMethod())
-        .c_str());
-  env.push_back(
-      std::string("SERVER_PROTOCOL=")
-        .append(_request.getHttpVersion())
-        .c_str());
-  env.push_back(
-      std::string("SCRIPT_NAME=")
-        .append(_request.getResource())
-        .c_str());
+  envString.push_back("REQUEST_METHOD=" + _request.getMethod());
+  envString.push_back("SERVER_PROTOCOL=" + _request.getHttpVersion());
+  envString.push_back("SCRIPT_NAME=" + _request.getResource());
+  envString.push_back("CONTENT_LENGTH=" + content_length_s);
 
-  // SCRIPT_FILENAME : need document_root from server config Location ?? 
-  // PATH_INFO  check if value after .py depend on ls 
-  // PATH_TRANSLA
+  std::vector<std::string>::iterator it = envString.begin();
+  std::vector<std::string>::iterator ite = envString.end();
+  for (; it != ite; ++it) {
+    envp.push_back(const_cast<char *>((*it).c_str()));
+  }
+  envp.push_back(NULL);
+
+  // SCRIPT_FILENAME : need document_root from server config Location ??
+  // PATH_INFO  check if value after .py depend on ls
+  // PATH_TRANSLATED  PATH_INFO + Doc root
+  // QUERY_STRING if ? add
+
+  // from header content_length, content_type
+
+  // from server
+  //                       "SERVER_NAME=localhost",
+  //                       "SERVER_PORT=8080",
+  //                       "GATEWAY_INTERFACE=CGI/1.1",
+  //                       "SERVER_SOFTWARE=webserv/1.0",
+  //                       "REMOTE_ADDR=0",
+  //                       "REMOTE_PORT=0",
 
   // for (int i = 0; i < list.size(); ++i)
   //     strings.push_back(list[i].c_str();
 
-// const char *envp[]
+  // const char *envp[]
   //                       "SERVER_NAME=localhost",
   //                       "SERVER_PORT=8080",
   //                       "GATEWAY_INTERFACE=CGI/1.1",
@@ -98,7 +110,9 @@ void Cgi::run(void) {
   //                       "CONTENT_TYPE=text/plain",
   //                       NULL};
 
-  const char *argv[] = {"serve.py", NULL};
+  // const char *argv[] = {"serve.py", NULL};
+  std::vector<char *> arg;
+  arg.push_back(const_cast<char *>((_request.getResource().substr(1).c_str())));
 
   int pipe_body[2];
   int pipe_resp[2];
@@ -111,14 +125,14 @@ void Cgi::run(void) {
     return;
   }
 
+
   pid_t pid = fork();
   if (pid == 0) {
     dup2(pipe_body[0], STDIN_FILENO);
     dup2(pipe_resp[1], STDOUT_FILENO);
     close(pipe_body[1]);
     close(pipe_resp[0]);
-    execve("serve.py", const_cast<char *const *>(argv),
-           const_cast<char *const *>(envp));
+    execve("serve.py", arg.data(), envp.data());
     _exit(1);
   } else {
     close(pipe_body[0]);
