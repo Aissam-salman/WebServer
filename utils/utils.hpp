@@ -1,7 +1,8 @@
 #ifndef UTILS_HPP
 # define UTILS_HPP
 
-#include <iostream>
+#include <string>
+#include <map>
 
 // ====== MACROS ======
 // GLOBAL MACROS
@@ -66,10 +67,7 @@ enum e_methods {
 };
 
 
-// GLOBAL ARRAYS FOR THE DIFFERENT KEYS
-extern const std::string GLOBAL_KEY[];
-extern const std::string SERVER_KEY[];
-extern const std::string LOCATION_KEY[];
+typedef std::map<int, std::string> MapIntStr;
 
 // CHECK A KEY 
 bool    isValidKey(const std::string &key, const std::string keys_list[], const size_t size) ;

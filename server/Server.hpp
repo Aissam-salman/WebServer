@@ -13,8 +13,8 @@ class Server {
 	std::string						_name;
 	std::vector<Socket>				_sockets;
 	std::vector<Location>			_locations;
-	std::map<int, std::string>		_error_pages; // LINKS ERROR CODES TO ACCORDING PAGES
-	// size_t					m_max_body_size; // TODO : Ajouter le cap body_size
+	MapIntStr						_error_pages; // LINKS ERROR CODES TO ACCORDING PAGES
+	// long					_max_body_size; // TODO : Ajouter le cap body_size
 	// HOW TO STORE ERROR_PAGES (MAP ?)
 
   public:
@@ -23,6 +23,8 @@ class Server {
 	Server(std::string name);
 	Server(const Server &src);
 	Server &operator=(const Server &other);
+
+	std::vector<Location>&	getServerLocationsVector(void);
 	
 };
 

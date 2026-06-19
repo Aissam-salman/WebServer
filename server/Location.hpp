@@ -6,20 +6,20 @@
 #include "utils.hpp"
 
 class Location {
-    private:
-        std::string                 m_name;
-        std::string                 m_root_path;
-        std::string                 m_index_path;
-        std::vector<e_methods>      m_allowed_methods;
-        // size_t                      m_max_body_size;
-        // bool                        m_autoindex;
+	private:
+		std::string				    _name;
+		std::string				    _root_path;
+		std::string				    _index_path;
+		std::vector<e_methods>	    _allowed_methods;
+		long						_max_body_size;
+		bool						_autoindex;
 
-    public:
-        Location(void);
-        Location(std::string name);
-        Location(const Location &src);
-        Location& operator= (const Location &other);
-        ~Location();
+	public:
+
+		Location(std::string name);
+		Location(const Location &src);
+		Location& operator= (const Location &other);
+		~Location();
 };
 
 #endif

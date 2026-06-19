@@ -1,23 +1,16 @@
 #include <string>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <vector>
 #include <stdexcept>
 
 #include "utils.hpp"
+#include "Token.hpp"
 #include "Lexer.hpp"
 #include "configutils.hpp"
 
-
-// ===== ~TORS  =====
-Token::Token(std::string value): _value(value) {
-    _type = DEFAULT;
-}
-
-Token::~Token() {
-    std::cout << "Destructor called" << endofline;
-}
-Lexer::Lexer(std::string conf_file_path): _state(GLOBAL), _raw_file_path(conf_file_path), _raw_conf_file(conf_file_path.c_str()) {
+Lexer::Lexer(std::string conf_file_path): _raw_file_path(conf_file_path), _raw_conf_file(conf_file_path.c_str()) {
     std::cout << "Lexer name constructor called" << endofline;
     if (_raw_file_path.size() < 5 || _raw_file_path.substr(_raw_file_path.size() - 5) != ".conf")
         throw std::runtime_error ("Invalid file name : must end with .conf");
@@ -25,13 +18,11 @@ Lexer::Lexer(std::string conf_file_path): _state(GLOBAL), _raw_file_path(conf_fi
         throw std::runtime_error ("Error opening the file : " + _raw_file_path);
 }
 
-Lexer::~Lexer() {
-    std::cout << "Destructor called" << endofline;
-}
+Lexer::~Lexer() { }
 
 // ===== UTILS FUNCTONS =====
 // SPLITS WORDS AND SEPARATORS
-static std::string addSpacesAroundSeparators(const std::string &line) {
+static std::string formatConfFile(const std::string &line) {
     std::string result;
     for (size_t i = 0; i < line.size(); i++) {
         bool isSep = (line[i] == '{' || line[i] == '}' || line[i] == ';');
@@ -40,6 +31,10 @@ static std::string addSpacesAroundSeparators(const std::string &line) {
         if (isSep) result += ' ';
     }
     return result;
+}
+
+std::vector<Token> Lexer::getTokenVector(void) {
+    return (_tokens_vector);
 }
 
 // ===== METHODS =====
@@ -55,7 +50,7 @@ void    Lexer::initRawVector(void) {
             continue;
 
         std::string token;
-        std::istringstream clean_line(addSpacesAroundSeparators(line));
+        std::istringstream clean_line(formatConfFile(line));
         while (clean_line >> token)
             _raw_tokens_vector.push_back(token);
     }
@@ -65,56 +60,27 @@ void    Lexer::initRawVector(void) {
 void    Lexer::initTokensVector(void) {
     for (size_t i = 0; i < _raw_tokens_vector.size(); i++) {
         Token token(_raw_tokens_vector[i]);
-        switch (_state) {
-            case GLOBAL: {
-                display("GLOBAL STATE");
-            }
-            case SERVER: {
-                display("SERVER STATE");
-            }
-            case LOCATION: {
-                display("LOCATION STATE");
-            }
-        }
+        if (isValidKey(token._value, SEPARATORS, SEPARATORS_SIZE) == true)
+            token.setSeparatorType();
+        else if (isValidKey(token._value, GLOBAL_DIRECTIVES, GLOBAL_DIRECTIVES_SIZE) == true)
+            token._type = Token::DIRECTIVE;
+        else if (isValidKey(token._value, SERVER_DIRECTIVES, SERVER_DIRECTIVES_SIZE) == true)
+            token._type = Token::DIRECTIVE;
+        else if (isValidKey(token._value, LOCATION_DIRECTIVES, LOCATION_DIRECTIVES_SIZE) == true)
+            token._type = Token::DIRECTIVE;
+        else
+            token._type = Token::PARAMETER;
         _tokens_vector.push_back(token);
     }
 }
 
 
 // ===== TEST/OUTPUT =====
-// PRINTS THE TOKEN VECTORS
-void    Token::printToken(void) const {
-    display("Token value = " + _value);
-    std::cout << "Token type = ";
-    switch (_type) {
-        case GLOBAL_KEY: 
-            display("GLOBAL_KEY"); break;
-        case SERVER_KEY:
-            display("SERVER_KEY"); break;
-        case LOCATION_KEY:
-            display("LOCATION_KEY"); break;
-        case VALUE:
-            display("VALUE"); break;
-        case SEPARATOR:
-            display("SEPARATOR"); break;
-        case DEFAULT:
-            display("DEFAULT"); break;
-    }
-    std::cout << endofline;
-}
-
-void    Lexer::printTokens(void) const {
-    for (size_t i = 0; i < _tokens_vector.size(); i++) {
-        _tokens_vector[i].printToken();
-    }
-}
-
 void    Lexer::printRawTokens(void) const { 
     for (size_t i = 0; i < _raw_tokens_vector.size(); i++) {
         std::cout << "TOKEN NB ["<< i << "] = " <<  _raw_tokens_vector[i] << endofline;
     }
 }
-
 
 // READS THROUGH THE _RAW_CONF_FILE
 void    Lexer::printRawConfFile(void) {

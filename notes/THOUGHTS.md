@@ -15,6 +15,91 @@ BIND DES PAGES D'ERREUR AUX PAGES CORRESPONDANTES :
 
 ON PARCOURT LE FICHIER DE CONFIG LIGNE PAR LIGNE : 
 
+TOKENIZER :
+
+3 DIFFERENTS ETATS :
+    - GLOBAL
+    - SERVER
+    - LOCATION
+
+( Créer une fonction isDirective() -> Check si type == *_DIRECTIVE )
+
+
+REGLES POUR LE PARSING :
+    Cas généraux d'erreur : 
+    - Si token _type == *_DIRECTIVE && token next != VALUE 
+    - Si token _type == SEMICOLON && token next != DIRECTIVE || CLOSE_BRACKET
+
+GLOBAL DIRECTIVES
+    Cas d'erreur state :
+        - Si ETAT != GLOBAL
+
+    - Si token == "server" 
+        Cas d'erreur
+            - Si etat != GLOBAL 
+            - Si token next != OPEN_BRACKET 
+            - Si token index != 0
+
+        Sinon
+            _state = SERVER;
+
+SERVER DIRECTIVES
+    Cas d'erreur state :
+        - Si ETAT != SERVER
+
+    - Si token == "listen"
+        Cas d'erreur :
+            - Si next token -> Not formatted (0 to 65535 || 0.0.0.0 to 255.255.255.255 + 0 to 65535)
+            - Si next next token != SEMICOLON
+            
+        Sinon
+            Creer socket;
+                struct addrinfo hints, *res;
+                hints.ai_family = AF_INET;
+                hints.ai_socktype = SOCK_STREAM;
+                getaddrinfo("127.0.0.1", "8080", &hints, &res); || getaddrinfo(INADDR_ANY, "8080", &hints, &res)
+                // res->ai_addr contains the sockaddr already filled with the right values
+                freeaddrinfo(res);
+
+    - Si token == "server_name"
+        Cas d'erreur :
+            - Si _name de server est déja set
+            - Si next next token != SEMICOLON
+
+        Sinon
+            Server._name = next token
+
+    - Si token == "client_max_body_size"
+        Cas d'erreur :
+            - Si next next token != SEMICOLON
+
+        Sinon
+            Server._max_body_size = next token
+
+    - Si token == "error_page"
+        Cas d'erreur :
+            Si un token PARAMETER entre DIRECTIVE et dernier token PARAMETER != Nombre
+            Si dernier PARAMETER n'est pas un chemin accessible
+
+        Sinon
+            rebinds la MapIntStr des pages d'erreur avec le dernier PARAMETER avant semicolon;
+
+    - Si token == "location" 
+        Cas d'erreur : 
+            - si next next token != OPEN_BRACKET 
+            - Si next token ne commence pas par / || Pas de . / .. 
+
+        Sinon
+            Créer location -> nom = next token;
+            _state = LOCATION;
+
+LOCATION DIRECTIVES
+    Cas d'erreur state :
+        - Si ETAT != LOCATION
+
+
+
+
 Exemple de fichier de config :
 
 ### 1.1 NIVEAU SERVEUR :

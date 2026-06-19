@@ -14,6 +14,7 @@
 #include "utils.hpp"
 #include "Socket.hpp"
 #include "Server.hpp"
+#include "Parser.hpp"
 #include "Lexer.hpp"
 
 
@@ -34,14 +35,22 @@ int main(int argc, char *argv[]) {
 		// CREATING A SERVER LISTENING ON ONLY ONE PORT
 		// SETTING UP UTILS
 			
+		// INIT SERVER
+		Server server;
+
+		// FIRST STAGE LEXER
 		Lexer lexer(argv[1]);
 		lexer.initRawVector();
-		lexer.printRawTokens();
 		lexer.initTokensVector();
-		lexer.printTokens();
+		printTokens(lexer.getTokenVector());
 
-		Server serv("WebServTest");
+		// SECOND STAGE PARSER
+		Parser parser(lexer.getTokenVector(), server);
+		// printTokens(parser.getTokenVector());
+		parser.parsingTokensVector();
+
 		Socket socket1("SocketTest");
+
 
 		signal(SIGINT, signal_sigint);
 		int ret = 0;

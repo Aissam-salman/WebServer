@@ -1,0 +1,37 @@
+#include <iostream>
+
+#include "utils.hpp"
+#include "Token.hpp"
+
+Token::Token(std::string value): _value(value), _type(DEFAULT) {}
+
+Token::~Token() {}
+
+void    Token::setSeparatorType(void) {
+    if (_value == "{")
+        _type = OPEN_BRACKET;
+    else if (_value == "}")
+        _type = CLOSED_BRACKET;
+    else if (_value == ";")
+        _type = SEMICOLON;
+}
+
+void    Token::printToken(void) const {
+    display("Token value = " + _value);
+    std::cout << "Token type = ";
+    switch (_type) {
+        case DIRECTIVE: display("DIRECTIVE"); break;
+        case PARAMETER:          display("PARAMETER"); break;
+        case OPEN_BRACKET:       display("OPEN_BRACKET"); break;
+        case CLOSED_BRACKET:     display("CLOSED_BRACKET"); break;
+        case SEMICOLON:          display("SEMICOLON"); break;
+        case DEFAULT:            display("DEFAULT"); break;
+    }
+    std::cout << endofline;
+}
+
+void    printTokens(std::vector<Token> tokens_vector) {
+    for (size_t i = 0; i < tokens_vector.size(); i++) {
+        tokens_vector[i].printToken();
+    }
+}

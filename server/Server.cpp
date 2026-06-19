@@ -28,3 +28,7 @@ Server &Server::operator=(const Server &other) {
 Server::~Server() {
 	std::cout << BOLD_RED << "Server Destructor called" << RESET << std::endl;
 }
+
+std::vector<Location>&	Server::getServerLocationsVector(void) {
+	return (_locations);
+}
