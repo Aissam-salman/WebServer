@@ -15,11 +15,13 @@ std::string trim(const std::string& s)
     return s.substr(start, end - start + 1);
 }
 
+//WARN: Host need handle error
 void    Request::parseRequest(const std::string& raw_request)
 {
     size_t separator = raw_request.find("\r\n\r\n");
     if (separator == std::string::npos)
         throw std::runtime_error("missing separator CRLF"); 
+
 
     std::string before_body = raw_request.substr(0, separator);
     body = raw_request.substr(separator + 4);
