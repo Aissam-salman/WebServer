@@ -6,7 +6,7 @@
 /*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/18 18:29:37 by alamjada          #+#    #+#             */
-/*   Updated: 2026/06/20 18:02:42 by alamjada         ###   ########.fr       */
+/*   Updated: 2026/06/20 18:21:57 by alamjada         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,23 +27,6 @@
 // std::string resource;
 // std::map<std::string, std::string> headers;
 // std::string body;
-
-// const char *envp[] = {"REQUEST_METHOD=POST",
-//                       "SERVER_PROTOCOL=HTTP/1.1",
-//                       "SERVER_NAME=localhost",
-//                       "SERVER_PORT=8080",
-//                       "GATEWAY_INTERFACE=CGI/1.1",
-//                       "SERVER_SOFTWARE=webserv/1.0",
-//                       "REMOTE_ADDR=0",
-//                       "REMOTE_PORT=0",
-//                       "SCRIPT_NAME=/server.py",
-//                       "SCRIPT_FILENAME=/www/scripts/server.py",
-//                       "PATH_INFO=",
-//                       "PATH_TRANSLATED=",
-//                       "QUERY_STRING=",
-//                       "CONTENT_LENGTH=36",
-//                       "CONTENT_TYPE=text/plain",
-// path script
 
 Cgi::Cgi(void) { _languagesSupported.push_back("python"); }
 
@@ -69,6 +52,8 @@ void Cgi::run(void) {
   envString.push_back("CONTENT_TYPE=" +
                       _request.getHeaders().find("Content-Type")->second);
 
+  envString.push_back("SERVER_NAME=" +
+                      _request.getHeaders().find("Host")->second);
   envString.push_back("REQUEST_METHOD=" + _request.getMethod());
   envString.push_back("SERVER_PROTOCOL=" + _request.getHttpVersion());
 

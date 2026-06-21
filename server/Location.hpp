@@ -13,7 +13,6 @@ class Location {
         std::vector<e_methods>      m_allowed_methods;
         // size_t                      m_max_body_size;
         // bool                        m_autoindex;
-
     public:
         Location(void);
         Location(std::string name);
