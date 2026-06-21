@@ -28,6 +28,4 @@ public:
 	static void handle_sigint(int);
 };
 
-bool Server::g_running = false;
-
 #endif

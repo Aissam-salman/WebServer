@@ -6,23 +6,19 @@
 /*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/20 18:40:45 by alamjada          #+#    #+#             */
-/*   Updated: 2026/06/21 16:23:06 by alamjada         ###   ########.fr       */
+/*   Updated: 2026/06/21 18:08:25 by alamjada         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Client.hpp"
-#include "Request.hpp"
 #include "utils.hpp"
-#include <cstring>
-#include <sstream>
 #include <stdexcept>
-#include <sys/poll.h>
 #include <sys/types.h>
 #include <unistd.h>
 
 Client::Client(void) {}
 
-Client::Client(int fd): _request() {
+Client::Client(int fd): _status(READING), _offset_send(0), _request(){
   _poll_listen.fd = fd;
   _poll_listen.events = POLLIN;
   _poll_listen.revents = 0;
@@ -56,7 +52,7 @@ bool Client::isRequestCompleted(void) {
   if (header_contentLength_pos != std::string::npos) {
     size_t len_start = header_contentLength_pos + 15;
     size_t len_end = _buffer_read.find("\r\n", len_start);
-    std::string lenString = _buffer_read.substr(len_start, len_end - len_end);
+    std::string lenString = _buffer_read.substr(len_start, len_end - len_start);
     size_t len = strToInt(lenString);
     size_t body_size = _buffer_read.size() - (header_end + 4);
     return body_size >= len;

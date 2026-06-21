@@ -41,13 +41,13 @@ void    Request::parseRequest(const std::string& raw_request)
     while (getline(issh, line))
     {
         if (line.empty())
-            continue;    
-        size_t pos = line.find(":");
-        if (pos == std::string::npos)
-            continue;  // Skip si pas de colon
-        
-        std::string key = trim(line.substr(0, pos));
-        std::string value = trim(line.substr(pos + 1));
+            continue;
+        size_t colon = line.find(":");
+        if (colon == std::string::npos)
+            continue;
+
+        std::string key = trim(line.substr(0, colon));
+        std::string value = trim(line.substr(colon + 1));
 
         if (!key.empty())
             this->headers[key] = value;
@@ -69,8 +69,8 @@ void    Request::parseRequestLine(const std::string& first_line)
 
     if (method.empty() || resource.empty() || http_version.empty())
         throw std::invalid_argument("400");
-	if (method != "GET" && method != "POST" && method != "DELETE")
-		throw std::runtime_error("405");
-	if (http_version != "HTTP/1.1" && http_version != "HTTP/1.0")
-		throw std::runtime_error("505");
+    if (method != "GET" && method != "POST" && method != "DELETE")
+        throw std::runtime_error("405");
+    if (http_version != "HTTP/1.1" && http_version != "HTTP/1.0")
+        throw std::runtime_error("505");
 }
