@@ -21,19 +21,34 @@ static std::string trim(const std::string& s)
     return s.substr(start, end - start + 1);
 }
 
-void    Request::parseRequest(const std::string& raw_request)
-{
-    size_t separator = raw_request.find("\r\n\r\n");
-    if (separator == std::string::npos)
-        throw std::runtime_error("missing separator CRLF"); 
+// WARN: Host need handle error
+void Request::parseRequest(const std::string &raw_request) {
+  size_t separator = raw_request.find("\r\n\r\n");
+  if (separator == std::string::npos)
+    throw std::runtime_error("missing separator CRLF");
 
-    std::string before_body = raw_request.substr(0, separator);
-    body = raw_request.substr(separator + 4);
+  std::string before_body = raw_request.substr(0, separator);
+  body = raw_request.substr(separator + 4);
 
-    size_t first_line_pos = before_body.find("\r\n");
-    std::string first_line = before_body.substr(0, first_line_pos);
+  size_t first_line_pos = before_body.find("\r\n");
+  std::string first_line = before_body.substr(0, first_line_pos);
 
-    parseRequestLine(first_line);
+  parseRequestLine(first_line);
+
+  std::string headers_str =
+      before_body.substr(first_line_pos + 2, separator - (first_line_pos + 2));
+  size_t pos = 0;
+  while ((pos = headers_str.find("\r\n")) != std::string::npos)
+    headers_str.erase(pos, 1); // Enlève le \r
+
+  std::istringstream issh(headers_str);
+  std::string line;
+  while (getline(issh, line)) {
+    if (line.empty())
+      continue;
+    size_t colon = line.find(":");
+    if (colon == std::string::npos)
+      continue;
 
     std::string headers_str = before_body.substr(first_line_pos + 2);
     size_t pos = 0;
@@ -68,10 +83,9 @@ void    Request::parseRequest(const std::string& raw_request)
         parseCgi_env();
 }
 
-void    Request::parseRequestLine(const std::string& first_line)
-{   
-    std::istringstream iss(first_line);
-    iss >> method >> resource >> http_version;
+void Request::parseRequestLine(const std::string &first_line) {
+  std::istringstream iss(first_line);
+  iss >> method >> resource >> http_version;
 
     if (method.empty() || resource.empty() || http_version.empty())
         throw std::invalid_argument("400");

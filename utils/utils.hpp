@@ -4,6 +4,7 @@
 #include <iostream>
 
 std::ostream& endofline(std::ostream& os);
+size_t strToInt(std::string str);
 
 // Regular colors
 # define BLACK          "\033[30m"

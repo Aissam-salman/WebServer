@@ -1,12 +1,10 @@
 SERVER   = WebServ
-CLIENT   = WebServ-client
 
 CXX      = c++
 CXXFLAGS = -Wall -Wextra -Werror -Wswitch \
            -Wpedantic -Wshadow -Wnon-virtual-dtor -Wold-style-cast \
            -std=c++98 -MMD -MP \
-           -I server  -I client -I utils
-
+           -I server  -I client -I utils -I server/cgi
 LDFLAGS  =
 
 # ============== SRC-FILES ===================
@@ -15,17 +13,14 @@ SERVER_SRC = \
     server/Server.cpp \
     server/Location.cpp \
     server/Socket.cpp \
-	server/config/Lexer.cpp \
-    utils/utils.cpp
-
-CLIENT_SRC = \
-    client/main.cpp \
-    client/Client.cpp \
-    utils/utils.cpp
+		server/config/Lexer.cpp \
+    server/client/Client.cpp \
+		server/Request.cpp \
+		server/cgi/Cgi.cpp \
+    utils/utils.cpp \
 
 OBJDIR     = objs
 SERVER_OBJ = $(patsubst %.cpp,$(OBJDIR)/%.o,$(SERVER_SRC))
-CLIENT_OBJ = $(patsubst %.cpp,$(OBJDIR)/%.o,$(CLIENT_SRC))
 DEPS       = $(SERVER_OBJ:.o=.d) $(CLIENT_OBJ:.o=.d)
 
 # ============== DEBUG / SANITIZER FLAGS =====
@@ -33,7 +28,7 @@ DEBUG_FLAGS = -g3 -O0
 ASAN_FLAGS  = -fsanitize=address   -fno-omit-frame-pointer
 UBSAN_FLAGS = -fsanitize=undefined -fno-omit-frame-pointer
 
-all: server client
+all: server
 
 # mkdir -p creates the per-subdir bucket on demand
 $(OBJDIR)/%.o: %.cpp
@@ -42,9 +37,6 @@ $(OBJDIR)/%.o: %.cpp
 
 server: $(SERVER_OBJ)
 	$(CXX) $(CXXFLAGS) $^ -o $(SERVER) $(LDFLAGS)
-
-client: $(CLIENT_OBJ)
-	$(CXX) $(CXXFLAGS) $^ -o $(CLIENT) $(LDFLAGS)
 
 -include $(DEPS)
 
@@ -87,19 +79,6 @@ watch-server:
 		clear; \
 		printf '↻ %s — rebuilding\n' "$$(date +%H:%M:%S)"; \
 		$(MAKE) --no-print-directory server && echo "── run ──" && ./$(SERVER); true; \
-	done
-
-watch-client:
-	@command -v fswatch >/dev/null 2>&1 || { \
-		echo "fswatch not found — install with: brew install fswatch"; \
-		exit 1; \
-	}
-	@$(MAKE) --no-print-directory client && echo "── run ──" && ./$(CLIENT); true
-	@echo "watching client files — Ctrl-C to stop"
-	@fswatch -o $(CLIENT_SRC) $(wildcard client/*.hpp) $(wildcard utils/*.hpp) | while read -r _; do \
-		clear; \
-		printf '↻ %s — rebuilding\n' "$$(date +%H:%M:%S)"; \
-		$(MAKE) --no-print-directory client && echo "── run ──" && ./$(CLIENT); true; \
 	done
 
 help:

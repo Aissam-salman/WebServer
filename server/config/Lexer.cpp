@@ -31,6 +31,6 @@ Lexer::~Lexer() {
 
 void    Lexer::printTokens(void) const { 
     for (size_t i = 0; i < _tokens_vector.size(); i++) {
-        std::cout << "TOKEN NB ["<< i << "] = " <<  _tokens_vector[i].c_str() << "\n" << endofline();
+        std::cout << "TOKEN NB ["<< i << "] = " <<  _tokens_vector[i].c_str() << "\n" << std::endl;
     }
 }
