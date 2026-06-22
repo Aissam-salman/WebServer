@@ -6,12 +6,11 @@
 /*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/18 18:29:37 by alamjada          #+#    #+#             */
-/*   Updated: 2026/06/20 18:21:57 by alamjada         ###   ########.fr       */
+/*   Updated: 2026/06/22 17:15:07 by alamjada         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Cgi.hpp"
-#include <algorithm>
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
@@ -27,6 +26,29 @@
 // std::string resource;
 // std::map<std::string, std::string> headers;
 // std::string body;
+// from server
+//                       "SERVER_NAME=localhost",
+//                       "SERVER_PORT=8080",
+//                       "GATEWAY_INTERFACE=CGI/1.1",
+//                       "SERVER_SOFTWARE=webserv/1.0",
+//                       "REMOTE_ADDR=0",
+//                       "REMOTE_PORT=0",
+
+// const char *envp[]
+//                       "SERVER_NAME=localhost",
+//                       "SERVER_PORT=8080",
+//                       "GATEWAY_INTERFACE=CGI/1.1",
+//                       "SERVER_SOFTWARE=webserv/1.0",
+//                       "REMOTE_ADDR=0",
+//                       "REMOTE_PORT=0",
+//                       "SCRIPT_NAME=/cgi-bin/server.py",
+//                       "SCRIPT_FILENAME=/www/cgi-bin/server.py",
+//                       "PATH_INFO=",
+//                       "PATH_TRANSLATED=",
+//                       "QUERY_STRING=",
+//                       "CONTENT_LENGTH=36",
+//                       "CONTENT_TYPE=text/plain",
+//                       NULL};
 
 Cgi::Cgi(void) { _languagesSupported.push_back("python"); }
 
@@ -37,16 +59,18 @@ Cgi::Cgi(std::vector<std::string> ls, Request rq)
 
 Cgi::~Cgi(void) {}
 
-void Cgi::run(void) {
+std::string Cgi::run(void) {
   std::vector<char *> envp;
   std::vector<std::string> envString;
   std::vector<char *> arg;
 
   std::string content_length_s =
       _request.getHeaders().find("Content-Length")->second;
+
   int ct;
   std::stringstream s(content_length_s);
   s >> ct;
+  std::cerr << "[DEBUG] == ICI" << std::endl;
 
   envString.push_back("CONTENT_LENGTH=" + content_length_s);
   envString.push_back("CONTENT_TYPE=" +
@@ -85,41 +109,17 @@ void Cgi::run(void) {
   }
   envp.push_back(NULL);
 
-  // from server
-  //                       "SERVER_NAME=localhost",
-  //                       "SERVER_PORT=8080",
-  //                       "GATEWAY_INTERFACE=CGI/1.1",
-  //                       "SERVER_SOFTWARE=webserv/1.0",
-  //                       "REMOTE_ADDR=0",
-  //                       "REMOTE_PORT=0",
-
-  // const char *envp[]
-  //                       "SERVER_NAME=localhost",
-  //                       "SERVER_PORT=8080",
-  //                       "GATEWAY_INTERFACE=CGI/1.1",
-  //                       "SERVER_SOFTWARE=webserv/1.0",
-  //                       "REMOTE_ADDR=0",
-  //                       "REMOTE_PORT=0",
-  //                       "SCRIPT_NAME=/cgi-bin/server.py",
-  //                       "SCRIPT_FILENAME=/www/cgi-bin/server.py",
-  //                       "PATH_INFO=",
-  //                       "PATH_TRANSLATED=",
-  //                       "QUERY_STRING=",
-  //                       "CONTENT_LENGTH=36",
-  //                       "CONTENT_TYPE=text/plain",
-  //                       NULL};
-
   arg.push_back(const_cast<char *>((_request.getResource().c_str())));
 
   int pipe_body[2];
   int pipe_resp[2];
   if (pipe(pipe_body) == -1) {
     std::cerr << "Error: pipe: " << strerror(errno) << std::endl;
-    return;
+    return std::string("");
   }
   if (pipe(pipe_resp) == -1) {
     std::cerr << "Error: pipe: " << strerror(errno) << std::endl;
-    return;
+    return std::string("");
   }
 
   pid_t pid = fork();
@@ -131,8 +131,10 @@ void Cgi::run(void) {
     dup2(pipe_resp[1], STDOUT_FILENO);
     close(pipe_body[1]);
     close(pipe_resp[0]);
-    // FIX: SCRIPT_FILENAME
-    execve("serve.py", arg.data(), envp.data());
+    execve(_request.getResource()
+               .substr(0, _request.getResource().find(".py") + 3)
+               .c_str(),
+           arg.data(), envp.data());
     _exit(1);
   } else {
     close(pipe_body[0]);
@@ -152,6 +154,6 @@ void Cgi::run(void) {
       resp.append(buf, n);
     waitpid(pid, NULL, 0);
     close(pipe_resp[0]);
-    std::cout << resp << std::endl;
+    return resp;
   }
 }

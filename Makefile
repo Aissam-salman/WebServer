@@ -4,7 +4,7 @@ CXX      = c++
 CXXFLAGS = -Wall -Wextra -Werror -Wswitch \
            -Wpedantic -Wshadow -Wnon-virtual-dtor -Wold-style-cast \
            -std=c++98 -MMD -MP \
-           -I server  -I client -I utils
+           -I server  -I client -I utils -I server/cgi
 LDFLAGS  =
 
 # ============== SRC-FILES ===================
@@ -16,7 +16,8 @@ SERVER_SRC = \
 		server/config/Lexer.cpp \
     server/client/Client.cpp \
 		server/Request.cpp \
-    utils/utils.cpp
+		server/cgi/Cgi.cpp \
+    utils/utils.cpp \
 
 OBJDIR     = objs
 SERVER_OBJ = $(patsubst %.cpp,$(OBJDIR)/%.o,$(SERVER_SRC))

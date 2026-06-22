@@ -1,4 +1,5 @@
 #include "Server.hpp"
+#include "cgi/Cgi.hpp"
 #include "utils.hpp"
 #include <csignal>
 #include <iostream>
@@ -45,6 +46,8 @@ void Server::run(void) {
   Socket socket1("SocketTest");
   socket1.setSocket(PORT);
   m_sockets.push_back(socket1);
+  std::vector<std::string> ls;
+  ls.push_back("python");
 
   signal(SIGINT, handle_sigint);
   std::vector<pollfd> poll_fds;
@@ -86,14 +89,12 @@ void Server::run(void) {
             _clients.erase(fd);
             poll_fds.erase(poll_fds.begin() + i--);
           } else if (client.getStatus() == WRITTING) {
-						std::cout << "[DEBUG] " << client.getBufferRead() << std::endl;
             client._request.parseRequest(client.getBufferRead());
+            Cgi cgi(ls, client._request);
+            std::string resp = cgi.run();
             // std::string resp = buildResp(client._request);
-            std::string resp =
-                "HTTP/1.1 200 OK\r\nContent-Length: 17\r\nContent-Type: "
-                "text/plain\r\nConnection: close\r\n\r\nRESP FROM WEBSERV";
             client.setResponse(resp);
-            poll_fds[i].events = POLLOUT;
+            poll_fds[i].events = POLLOUT; 
           }
         } else if (poll_fds[i].revents & POLLOUT) {
           bool isDone = client.handleSend();

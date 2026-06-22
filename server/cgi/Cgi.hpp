@@ -6,7 +6,7 @@
 /*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/18 17:37:36 by alamjada          #+#    #+#             */
-/*   Updated: 2026/06/20 18:21:19 by alamjada         ###   ########.fr       */
+/*   Updated: 2026/06/22 16:59:34 by alamjada         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,7 +27,7 @@ public:
   Cgi(std::vector<std::string> ls);
   Cgi(std::vector<std::string> ls, Request rq);
 
-  void run(void);
+  std::string run(void);
 };
 
 /*
@@ -54,6 +54,10 @@ execve(script_path, argv, envp);   // envp is your CGI env vars
                                    //
 * Request meta
 *
+* =
+
+
+
 * REQUEST_METHOD :  GET, POST, DELETE
 * SERVER_PROTOCOL : HTTP/1.1
 * SERVER_NAME :  from Host: in header

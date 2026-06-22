@@ -9,6 +9,7 @@
 
 #include "Server.hpp"
 
+
 using namespace std;
 
 void error(string error) { cerr << error << endl; }
@@ -21,8 +22,10 @@ int main(void) {
     serv.run();
   } catch (runtime_error &e) {
     error("RUNTIME ERROR");
+    std::cerr << e.what() << std::endl;
   } catch (exception &e) {
     error("EXCEPTION");
+    std::cerr << e.what() << std::endl;
   } catch (...) {
     cerr << "FELL INTO THE PIT" << endl;
   }
