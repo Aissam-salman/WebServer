@@ -22,11 +22,8 @@ Socket::Socket(const Socket &src) {
 
 Socket& Socket::operator= (const Socket &other) {
     std::cout << "Copy assignment operator called" << std::endl;
-    if (this != &other) {
+    if (this != &other)
         m_name = other.m_name;
-        m_listen_fd = other.m_listen_fd;
-        m_addr = other.m_addr;
-    }
     return (*this);
 }
 
@@ -71,7 +68,6 @@ void    Socket::setSocket(int port) {
         std::cout << "Listening on FD " << m_listen_fd << " failed miserably" << std::endl;
     else
         std::cout << "LISTENING SUCCESS on port : " << PORT << std::endl;
-	
 }
 
 int     Socket::getSocketFd(void) {
