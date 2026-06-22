@@ -6,7 +6,7 @@
 /*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/18 17:37:36 by alamjada          #+#    #+#             */
-/*   Updated: 2026/06/22 16:59:34 by alamjada         ###   ########.fr       */
+/*   Updated: 2026/06/22 17:59:30 by alamjada         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,12 +20,11 @@ private:
   std::vector<std::string> _languagesSupported;
   Request _request;
 
-public:
   Cgi(void);
-  ~Cgi(void);
 
-  Cgi(std::vector<std::string> ls);
+public:
   Cgi(std::vector<std::string> ls, Request rq);
+  ~Cgi(void);
 
   std::string run(void);
 };

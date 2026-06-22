@@ -6,7 +6,7 @@
 /*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/20 18:16:11 by alamjada          #+#    #+#             */
-/*   Updated: 2026/06/21 17:32:59 by alamjada         ###   ########.fr       */
+/*   Updated: 2026/06/22 18:28:47 by alamjada         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,10 +26,12 @@ private:
   size_t _offset_send;
 
 public:
-  Request _request;
   Client(void);
   Client(int fd);
+  Client(int fd, Request req);
   ~Client(void);
+
+  Request _request;
 
   pollfd getPollfd(void);
   bool handleRecv(void);

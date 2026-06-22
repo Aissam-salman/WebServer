@@ -76,7 +76,7 @@ void Server::run(void) {
         // new client
         if (poll_fds[i].revents & POLLIN) {
           int client_fd = accept(fd, NULL, NULL);
-          _clients[client_fd] = Client(client_fd);
+          _clients[client_fd] = Client(client_fd, Request("8080", "0.0.0.0", "0000", "www"));
           poll_fds.push_back(_clients[client_fd].getPollfd());
         }
       } else {
@@ -90,9 +90,14 @@ void Server::run(void) {
             poll_fds.erase(poll_fds.begin() + i--);
           } else if (client.getStatus() == WRITTING) {
             client._request.parseRequest(client.getBufferRead());
-            Cgi cgi(ls, client._request);
-            std::string resp = cgi.run();
-            // std::string resp = buildResp(client._request);
+            std::string resp;
+            if (client._request.isCGI()) {
+              Cgi cgi(ls, client._request);
+              resp = cgi.run();
+            } else {
+              // resp = buildResp(client._request);
+              resp = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: 53\r\nConnection: keep-alive\r\n\r\n<!DOCTYPE html><html><body>Hello world</body></html>";
+            }
             client.setResponse(resp);
             poll_fds[i].events = POLLOUT; 
           }
