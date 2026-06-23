@@ -118,13 +118,13 @@ void Request::parseCgi_env() {
   //     break;
   //   }
   // }
+  //
   size_t extension_pos = path.find(".py");
   if (extension_pos != std::string::npos) {
     size_t end = path.find("/", extension_pos);
     if (end != std::string::npos) {
       cgi_env["SCRIPT_NAME"] = path.substr(0, end);
       cgi_env["PATH_INFO"] = path.substr(end);
-      std::cerr << cgi_env["PATH_INFO"] << std::endl;
     } else {
       cgi_env["SCRIPT_NAME"] = path;
       cgi_env["PATH_INFO"] = "";

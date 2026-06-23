@@ -6,18 +6,6 @@ import sqlite3
 import json
 import logging
 
-logging.basicConfig(
-    filename="cgi_error.log",
-    level=logging.ERROR,
-    format="%(asctime)s - %(levelname)s - %(message)s"
-)
-
-sys.stderr = open("cgi_errors.log", "a")
-
-def handle_exception(exc_type, exc_value, exc_traceback):
-    logging.error("Exception non gérée", exc_info=(exc_type, exc_value, exc_traceback))
-
-sys.excepthook = handle_exception
 
 class Request:
     def __init__(
@@ -31,7 +19,7 @@ class Request:
         query_string: str,
         resp: str = "",
         body=None,
-        conn: sqlite3.Connection=None,
+        conn: sqlite3.Connection = None,
     ) -> None:
         self.method = method
         self.script_filename = script_filename
@@ -44,39 +32,94 @@ class Request:
         self.body = body
         self.conn = conn
 
+    def _not_found(self):
+        print("HTTP/1.1 404 Not found\r\nConnection: close\r\n\r\n", end="")
+
     #     "HTTP/1.1 200 OK\r\nContent-Length: 17\r\nContent-Type: "
     #     "text/plain\r\nConnection: close\r\n\r\nRESP FROM WEBSERV";
-    def _not_found(self):
-        print("HTTP/1.1 404 Not found\r\nConnection: close\r\n\r\n", end='')
-
     def _OK(self, text):
         print(
-            f"HTTP/1.1 200 OK\r\nContent-Length: {len(text)}\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{text}",end=''
+            f"HTTP/1.1 200 OK\r\nContent-Length: {len(text)}\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{text}",
+            end="",
         )
 
     def Get(self):
-        self.conn.row_factory = sqlite3.Row; cursor = self.conn.cursor();
+        self.conn.row_factory = sqlite3.Row
+        cursor = self.conn.cursor()
         if self.query_string != "" and self.path_info != "":
             # - GET /cgi-bin/serve.py/article/1?lang=fr → retourne l'article 1 en français
-            print("query + path_info")
-        elif self.query_string != "":
-            # - GET /cgi-bin/serve.py?lang=fr → retourne tous les articles filtrés en français
-            print("query")
-        elif self.path_info != "":
-            # - GET /cgi-bin/serve.py/article/1 → retourne l'article 1 en français
-            print("path_info")
-            res = self.path_info.split('/')
+            res = self.query_string.split("=")
+            if res[0] != "lang":
+                self._not_found()
+                return
+            if res[1] != "fr" and res[1] != "en":
+                self._not_found()
+                return
+            lang = res[1]
+            res2 = self.path_info.split("/")
+            id = int(res2[-1])
+            query = "select * from articles where id = ? and lang = ?"
             try:
-                id = int(res[-1])
-                print(id)
+                cursor.execute(
+                    query,
+                    (
+                        id,
+                        lang,
+                    ),
+                )
             except:
                 self._not_found()
                 return
-            query = 'select * from articles where id = ?'
+            rows = cursor.fetchall()
+            data = [dict(row) for row in rows]
+            if len(data) == 0:
+                self._not_found()
+                return
+            json_str = json.dumps(data)
+            self._OK(json_str)
+        elif self.query_string != "":
+            # - GET /cgi-bin/serve.py?lang=fr → retourne tous les articles filtrés en français
+            res = self.query_string.split("=")
+            if res[0] != "lang":
+                self._not_found()
+                return
+            if res[1] != "fr" and res[1] != "en":
+                self._not_found()
+                return
+            lang = res[1]
+            query = "select * from articles where lang = ?"
+            try:
+                cursor.execute(query, (lang,))
+            except:
+                self._not_found()
+                return
+            rows = cursor.fetchall()
+            data = [dict(row) for row in rows]
+            if len(data) == 0:
+                self._not_found()
+                return
+            json_str = json.dumps(data)
+            self._OK(json_str)
+        elif self.path_info != "":
+            # - GET /cgi-bin/serve.py/article/1 → retourne l'article 1 en français
+            res = self.path_info.split("/")
+            try:
+                id = int(res[-1])
+                query = "select * from articles where id = ?"
+                cursor.execute(query, (id,))
+                rows = cursor.fetchall()
+                data = [dict(row) for row in rows]
+                if len(data) == 0:
+                    self._not_found()
+                    return
+                json_str = json.dumps(data)
+                self._OK(json_str)
+            except:
+                self._not_found()
+                return
         else:
-            # find all article
             #  GET /cgi-bin/serve.py → retourne tous les articles
-            query = 'SELECT * from articles;'
+            query = "SELECT * from articles;"
             cursor.execute(query)
             rows = cursor.fetchall()
             data = [dict(row) for row in rows]
@@ -132,6 +175,7 @@ def debug():
     print("----------- END DEBUG -------------------")
     sys.stdout.flush()
 
+
 def init_db(conn):
     cursor = conn.cursor()
     cursor.execute("""
@@ -145,16 +189,30 @@ def init_db(conn):
     cursor.executemany(
         "INSERT OR IGNORE INTO articles (id, title, lang, content) VALUES (?, ?, ?, ?)",
         [
-            (1, "Hello World",        "en", "My first article in English."),
-            (2, "Bonjour le monde",   "fr", "Mon premier article en francais."),
-            (3, "Introduction to C",  "en", "Pointers, memory, and undefined behavior."),
-            (4, "Les sockets POSIX",  "fr", "Comment creer un serveur TCP en C."),
-            (5, "CGI Explained",      "en", "How a web server talks to a script."),
-        ]
+            (1, "Hello World", "en", "My first article in English."),
+            (2, "Bonjour le monde", "fr", "Mon premier article en francais."),
+            (3, "Introduction to C", "en", "Pointers, memory, and undefined behavior."),
+            (4, "Les sockets POSIX", "fr", "Comment creer un serveur TCP en C."),
+            (5, "CGI Explained", "en", "How a web server talks to a script."),
+        ],
     )
     conn.commit()
 
+
+def handle_exception(exc_type, exc_value, exc_traceback):
+    logging.error("Exception non gérée", exc_info=(exc_type, exc_value, exc_traceback))
+
+
 def main() -> int:
+    logging.basicConfig(
+        filename="cgi_error.log",
+        level=logging.ERROR,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+    )
+
+    sys.stderr = open("cgi_errors.log", "a")
+
+    sys.excepthook = handle_exception
     conn = sqlite3.connect("db.sql")
     init_db(conn)
 
@@ -167,9 +225,10 @@ def main() -> int:
         content_type=os.environ.get("CONTENT_TYPE", ""),
         path_translated=os.environ.get("PATH_TRANSLATED", ""),
         query_string=os.environ.get("QUERY_STRING", ""),
-        conn=conn
+        conn=conn,
     )
     rq.dispatch()
     return 0
+
 
 main()
