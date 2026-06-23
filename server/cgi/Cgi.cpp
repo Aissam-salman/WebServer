@@ -6,13 +6,15 @@
 /*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/18 18:29:37 by alamjada          #+#    #+#             */
-/*   Updated: 2026/06/22 18:57:11 by alamjada         ###   ########.fr       */
+/*   Updated: 2026/06/23 17:58:57 by alamjada         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Cgi.hpp"
 #include "Request.hpp"
+#include <algorithm>
 #include <cerrno>
+#include <cstddef>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -33,21 +35,25 @@ std::string Cgi::run(void) {
   std::vector<char *> envp;
   std::vector<char *> arg;
 
-  std::string content_length_s = _request.getCgi_env().at("CONTENT_LENGTH");
-  int ct;
-  std::stringstream s(content_length_s);
-  s >> ct;
-
   std::map<std::string, std::string>::const_iterator it =
       _request.getCgi_env().begin();
   std::map<std::string, std::string>::const_iterator ite =
       _request.getCgi_env().end();
-  for (; it != ite; ++it) {
-    env_strings.push_back(it->first + "=" + it->second);
-    envp.push_back(const_cast<char *>(env_strings.back().c_str()));
+
+  for (; it != ite; it++) {
+    env_strings.push_back(std::string(it->first) + "=" + std::string(it->second));
+  }
+
+  for (size_t i = 0; i < env_strings.size(); i++) {
+      envp.push_back(const_cast<char *>(env_strings[i].c_str()));
   }
   envp.push_back(NULL);
   arg.push_back(const_cast<char *>((_request.getResource().c_str())));
+
+  std::string content_length_s = _request.getCgi_env().at("CONTENT_LENGTH");
+  int ct;
+  std::stringstream s(content_length_s);
+  s >> ct;
 
   int pipe_body[2];
   int pipe_resp[2];
@@ -62,6 +68,7 @@ std::string Cgi::run(void) {
   pid_t pid = fork();
   if (pid < 0) {
     std::cerr << "Error: fork: " << strerror(errno) << std::endl;
+    return std::string("");
   }
   if (pid == 0) {
     dup2(pipe_body[0], STDIN_FILENO);

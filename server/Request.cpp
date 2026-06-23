@@ -1,5 +1,6 @@
 #include "Request.hpp"
 #include <algorithm>
+#include <cstddef>
 #include <cstdlib>
 #include <sstream>
 #include <stdexcept>
@@ -106,18 +107,29 @@ void Request::parseCgi_env() {
     cgi_env["QUERY_STRING"] = "";
   }
 
-  cgi_env["SCRIPT_NAME"] = path;
-  cgi_env["PATH_INFO"] = "";
-  size_t pos = 7;
-  while ((pos = path.find("/", pos + 1)) != std::string::npos) {
-    std::string s = path.substr(pos + 1, path.find("/", pos + 1) - (pos + 1));
-    if (s.find(".") != std::string::npos) {
-      cgi_env["SCRIPT_NAME"] = path.substr(0, pos + 1 + s.length());
-      cgi_env["PATH_INFO"] = path.substr(pos + 1 + s.length());
-      break;
+  // cgi_env["SCRIPT_NAME"] = path;
+  // cgi_env["PATH_INFO"] = "";
+  // size_t pos = 7;
+  // while ((pos = path.find("/", pos + 1)) != std::string::npos) {
+  //   std::string s = path.substr(pos + 1, path.find("/", pos + 1) - (pos + 1));
+  //   if (s.find(".") != std::string::npos) {
+  //     cgi_env["SCRIPT_NAME"] = path.substr(0, pos + 1 + s.length());
+  //     cgi_env["PATH_INFO"] = path.substr(pos + 1 + s.length());
+  //     break;
+  //   }
+  // }
+  size_t extension_pos = path.find(".py");
+  if (extension_pos != std::string::npos) {
+    size_t end = path.find("/", extension_pos);
+    if (end != std::string::npos) {
+      cgi_env["SCRIPT_NAME"] = path.substr(0, end);
+      cgi_env["PATH_INFO"] = path.substr(end);
+      std::cerr << cgi_env["PATH_INFO"] << std::endl;
+    } else {
+      cgi_env["SCRIPT_NAME"] = path;
+      cgi_env["PATH_INFO"] = "";
     }
   }
-
   cgi_env["SCRIPT_FILENAME"] = _document_root + cgi_env["SCRIPT_NAME"];
   if (!cgi_env["PATH_INFO"].empty())
     cgi_env["PATH_TRANSLATED"] = _document_root + cgi_env["PATH_INFO"];

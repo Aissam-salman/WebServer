@@ -6,7 +6,7 @@
 /*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/18 17:37:36 by alamjada          #+#    #+#             */
-/*   Updated: 2026/06/22 17:59:30 by alamjada         ###   ########.fr       */
+/*   Updated: 2026/06/23 16:27:55 by alamjada         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -53,10 +53,6 @@ execve(script_path, argv, envp);   // envp is your CGI env vars
                                    //
 * Request meta
 *
-* =
-
-
-
 * REQUEST_METHOD :  GET, POST, DELETE
 * SERVER_PROTOCOL : HTTP/1.1
 * SERVER_NAME :  from Host: in header
@@ -79,8 +75,8 @@ execve(script_path, argv, envp);   // envp is your CGI env vars
 Avec document_root = /var/www/html
 SCRIPT_NAME     = /cgi-bin/router.py
 SCRIPT_FILENAME = /var/www/html/cgi-bin/router.py   (chemin réel du script
-exécuté) PATH_INFO       = /user/create PATH_TRANSLATED =
-/var/www/html/user/create          (PATH_INFO traduit en chemin disque)
+exécuté) PATH_INFO       = /user/create 
+PATH_TRANSLATED =   /var/www/html/user/create          (PATH_INFO traduit en chemin disque)
 
 * Body
 * CONTENT_LENGTH byte size
