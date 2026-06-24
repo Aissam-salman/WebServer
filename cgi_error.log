@@ -13,3 +13,78 @@ Traceback (most recent call last):
     json_str = jsons.dumps(data)
                ^^^^^
 NameError: name 'jsons' is not defined. Did you mean: 'json'?
+2026-06-24 11:13:21,690 - ERROR - Exception non gérée
+Traceback (most recent call last):
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 262, in <module>
+    main()
+    ~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 258, in main
+    rq.dispatch()
+    ~~~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 170, in dispatch
+    self.Post()
+    ~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 146, in Post
+    print(params[0])
+          ~~~~~~^^^
+KeyError: 0
+2026-06-24 11:14:15,706 - ERROR - Exception non gérée
+Traceback (most recent call last):
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 262, in <module>
+    main()
+    ~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 258, in main
+    rq.dispatch()
+    ~~~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 170, in dispatch
+    self.Post()
+    ~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 146, in Post
+    print(params.title)
+          ^^^^^^^^^^^^
+AttributeError: 'dict' object has no attribute 'title'
+2026-06-24 11:14:21,257 - ERROR - Exception non gérée
+Traceback (most recent call last):
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 262, in <module>
+    main()
+    ~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 258, in main
+    rq.dispatch()
+    ~~~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 170, in dispatch
+    self.Post()
+    ~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 146, in Post
+    print(params.title)
+          ^^^^^^^^^^^^
+AttributeError: 'dict' object has no attribute 'title'
+2026-06-24 11:19:16,327 - ERROR - Exception non gérée
+Traceback (most recent call last):
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 262, in <module>
+    main()
+    ~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 258, in main
+    rq.dispatch()
+    ~~~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 170, in dispatch
+    self.Post()
+    ~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 146, in Post
+    print(params["title"])
+          ~~~~~~^^^^^^^^^
+KeyError: 'title'
+2026-06-24 11:19:23,885 - ERROR - Exception non gérée
+Traceback (most recent call last):
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 262, in <module>
+    main()
+    ~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 258, in main
+    rq.dispatch()
+    ~~~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 170, in dispatch
+    self.Post()
+    ~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 146, in Post
+    print(params["title"])
+          ~~~~~~^^^^^^^^^
+KeyError: 'title'

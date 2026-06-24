@@ -1,10 +1,19 @@
 #!/usr/bin/env python3
 
+from enum import Enum
 import os
 import sys
 import sqlite3
 import json
 import logging
+from urllib.parse import parse_qs, unquote_plus
+
+
+class ContentType(Enum):
+    X_WWW_FORM_URLENCODED = "application/x-www-form-urlencoded"
+    JSON = "application/json"
+    MULTIPART_FORM_DATA = "multipart_form_data"
+    TEXT_PLAIN = "text/plain"
 
 
 class Request:
@@ -35,6 +44,9 @@ class Request:
     def _not_found(self):
         print("HTTP/1.1 404 Not found\r\nConnection: close\r\n\r\n", end="")
 
+    def _bad_request(self):
+        print("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n", end="")
+
     #     "HTTP/1.1 200 OK\r\nContent-Length: 17\r\nContent-Type: "
     #     "text/plain\r\nConnection: close\r\n\r\nRESP FROM WEBSERV";
     def _OK(self, text):
@@ -42,6 +54,14 @@ class Request:
             f"HTTP/1.1 200 OK\r\nContent-Length: {len(text)}\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{text}",
             end="",
         )
+
+    def _created(self, new_id):
+        body = json.dumps({"id": new_id, "message": "Article created"})
+        print("HTTP/1.1 201 Created\r")
+        print(f"Content-Type: application/json\r")
+        print(f"Content-Length: {len(body)}\r")
+        print("\r")
+        print(body)
 
     def Get(self):
         self.conn.row_factory = sqlite3.Row
@@ -128,14 +148,47 @@ class Request:
         self.conn.commit()
 
     def Post(self):
-        print("POST")
-        self.body = sys.stdin.read(self.content_length)
-        print(self.body)
+        print("[DEBUG] = POST")
+        cursor = self.conn.cursor()
+
+        match self.content_type:
+            case ContentType.X_WWW_FORM_URLENCODED.value:
+                print("x_www_form")
+                params = parse_qs(self.body)
+                flat = {k: v[0] for k, v in params.items()}
+                title = flat.get("title", "")
+                lang = flat.get("lang", "")
+                content = flat.get("content", "")
+                if title != "" and lang != "" and content != "":
+                    print(f"title: {title}, lang: {lang}, content: {content}")
+                    query = (
+                        "INSERT INTO articles (title, lang, content) VALUES (?, ?, ?);"
+                    )
+                    cursor.execute(query, (title, lang, content))
+                    self.conn.commit()
+                    new_id = cursor.lastrowid
+                    self._created(new_id=new_id)
+                    return
+                self._bad_request()
+            case ContentType.JSON.value:
+                print("Json bro")
+            case ContentType.MULTIPART_FORM_DATA.value:
+                print("Multiform bro")
+            case ContentType.TEXT_PLAIN.value:
+                print("text plain normal")
+            case _:
+                print("other")
+        self.conn.commit()
 
     def Delete(self):
         print("DELETE")
 
     def dispatch(self) -> None:
+        if self.content_length > 0:
+            print("[DEBUG]->body: ", end="")
+            self.body = sys.stdin.read(self.content_length)
+            print(self.body)
+
         match self.method:
             case "GET":
                 self.Get()
@@ -148,6 +201,7 @@ class Request:
 
 
 def debug():
+
     print("-------------- [DEBUG]  ------------------")
     print("")
     print("Hello from CGI python")
@@ -168,11 +222,6 @@ def debug():
     print(f"SCRIPT_NAME={os.environ.get('SCRIPT_NAME')}")
     print(f"SCRIPT_FILENAME={os.environ.get('SCRIPT_FILENAME')}")
     print("")
-    content_length = int(os.environ.get("CONTENT_LENGTH", 0))
-    if content_length > 0:
-        print("body: ")
-        body = sys.stdin.read(content_length)
-        print(body)
     print("----------- END DEBUG -------------------")
     sys.stdout.flush()
 
@@ -217,7 +266,7 @@ def main() -> int:
     conn = sqlite3.connect("db.sql")
     init_db(conn)
 
-    # debug()
+    debug()
     rq = Request(
         method=os.environ.get("REQUEST_METHOD", ""),
         script_filename=os.environ.get("SCRIPT_FILENAME", "www/cgi-bin/serve.py"),
@@ -229,6 +278,7 @@ def main() -> int:
         conn=conn,
     )
     rq.dispatch()
+    conn.close()
     return 0
 
 
