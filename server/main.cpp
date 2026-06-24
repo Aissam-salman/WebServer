@@ -8,6 +8,7 @@
 #include <unistd.h>
 
 
+#include "config/Lexer.hpp"
 #include "utils.hpp"
 #include "Socket.hpp"
 #include "Server.hpp"
@@ -16,13 +17,6 @@
 
 
 using namespace std;
-
-bool g_running = true;
-
-void signal_sigint(int) {
-	g_running = false;
-	cerr << "SIGNAL RECEIVED" << endl;
-}
 
 
 // int main (void) {
@@ -58,7 +52,7 @@ int main(int argc, char **argv) {
 
 		server.printServer();
 
-    serv.run();
+    server.run();
   }
 	catch (runtime_error &e) {
 		std::cerr << RED << e.what() << endofline;
