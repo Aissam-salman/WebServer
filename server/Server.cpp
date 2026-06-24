@@ -5,6 +5,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <vector>
+#include "Response.hpp"
 
 bool Server::g_running = false;
 
@@ -89,11 +90,7 @@ void Server::run(void) {
             _clients.erase(fd);
             poll_fds.erase(poll_fds.begin() + i--);
           } else if (client.getStatus() == WRITTING) {
-            client._request.parseRequest(client.getBufferRead());
-            Cgi cgi(ls, client._request);
-            std::string resp = cgi.run();
-            // std::string resp = buildResp(client._request);
-            client.setResponse(resp);
+            client.process(ls);
             poll_fds[i].events = POLLOUT; 
           }
         } else if (poll_fds[i].revents & POLLOUT) {

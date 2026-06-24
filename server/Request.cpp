@@ -35,21 +35,6 @@ void Request::parseRequest(const std::string &raw_request) {
 
   parseRequestLine(first_line);
 
-  std::string headers_str =
-      before_body.substr(first_line_pos + 2, separator - (first_line_pos + 2));
-  size_t pos = 0;
-  while ((pos = headers_str.find("\r\n")) != std::string::npos)
-    headers_str.erase(pos, 1); // Enlève le \r
-
-  std::istringstream issh(headers_str);
-  std::string line;
-  while (getline(issh, line)) {
-    if (line.empty())
-      continue;
-    size_t colon = line.find(":");
-    if (colon == std::string::npos)
-      continue;
-
     std::string headers_str = before_body.substr(first_line_pos + 2);
     size_t pos = 0;
     while ((pos = headers_str.find("\r\n")) != std::string::npos)

@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Client.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
+/*   By: tgomez-f <tgomez-f@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/20 18:16:11 by alamjada          #+#    #+#             */
-/*   Updated: 2026/06/21 17:32:59 by alamjada         ###   ########.fr       */
+/*   Updated: 2026/06/24 10:33:39 by tgomez-f         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -40,4 +40,5 @@ public:
   Request getRequest(void);
   std::string getBufferRead(void) { return _buffer_read; }
   std::string getBufferSend(void) { return _buffer_send; }
+  void  process(const std::vector<std::string>& ls);
 };
