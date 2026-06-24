@@ -80,6 +80,7 @@ bool    isValidKey(const std::string &key, const std::string keys_list[], const 
 // UTILS FOR OUTPUT
 // RESET AND ENDL
 std::ostream& endofline(std::ostream& os);
+size_t strToInt(std::string str);
 
 // PRINTS THE STRING
 void	display(std::string print);

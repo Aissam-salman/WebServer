@@ -4,7 +4,7 @@ CXX      = c++
 CXXFLAGS = -Wall -Wextra -Werror -Wswitch \
            -Wpedantic -Wshadow -Wnon-virtual-dtor -Wold-style-cast \
            -std=c++98 -MMD -MP \
-           -I server  -I utils  -I server/config
+           -I server  -I utils  -I server/config -I server/cgi
 
 LDFLAGS  =
 
@@ -14,20 +14,14 @@ SERVER_SRC = \
     server/Server.cpp \
     server/Location.cpp \
     server/Socket.cpp \
-	server/config/Lexer.cpp \
-	server/config/Token.cpp \
-	server/config/configutils.cpp \
-	server/config/Parser.cpp \
-    utils/utils.cpp
-
-# CLIENT_SRC = \
-#     client/main.cpp \
-#     client/Client.cpp \
-#     utils/utils.cpp
+		server/config/Lexer.cpp \
+    server/client/Client.cpp \
+		server/Request.cpp \
+		server/cgi/Cgi.cpp \
+    utils/utils.cpp \
 
 OBJDIR     = objs
 SERVER_OBJ = $(patsubst %.cpp,$(OBJDIR)/%.o,$(SERVER_SRC))
-# CLIENT_OBJ = $(patsubst %.cpp,$(OBJDIR)/%.o,$(CLIENT_SRC))
 DEPS       = $(SERVER_OBJ:.o=.d) $(CLIENT_OBJ:.o=.d)
 
 # ============== DEBUG / SANITIZER FLAGS =====
@@ -92,19 +86,6 @@ watch-server:
 		printf '↻ %s — rebuilding\n' "$$(date +%H:%M:%S)"; \
 		$(MAKE) --no-print-directory server && echo "── run ──" && ./$(NAME); true; \
 	done
-
-# watch-client:
-# 	@command -v fswatch >/dev/null 2>&1 || { \
-# 		echo "fswatch not found — install with: brew install fswatch"; \
-# 		exit 1; \
-# 	}
-# 	@$(MAKE) --no-print-directory client && echo "── run ──" && ./$(CLIENT); true
-# 	@echo "watching client files — Ctrl-C to stop"
-# 	@fswatch -o $(CLIENT_SRC) $(wildcard client/*.hpp) $(wildcard utils/*.hpp) | while read -r _; do \
-# 		clear; \
-# 		printf '↻ %s — rebuilding\n' "$$(date +%H:%M:%S)"; \
-# 		$(MAKE) --no-print-directory client && echo "── run ──" && ./$(CLIENT); true; \
-# 	done
 
 help:
 	@echo "Targets:"

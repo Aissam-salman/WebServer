@@ -1,0 +1,101 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   Cgi.cpp                                            :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/06/18 18:29:37 by alamjada          #+#    #+#             */
+/*   Updated: 2026/06/23 17:58:57 by alamjada         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "Cgi.hpp"
+#include "Request.hpp"
+#include <algorithm>
+#include <cerrno>
+#include <cstddef>
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
+#include <map>
+#include <sstream>
+#include <string>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+Cgi::Cgi(std::vector<std::string> ls, Request rq)
+    : _languagesSupported(ls), _request(rq) {}
+
+Cgi::~Cgi(void) {}
+
+std::string Cgi::run(void) {
+  std::vector<std::string> env_strings;
+  std::vector<char *> envp;
+  std::vector<char *> arg;
+
+  std::map<std::string, std::string>::const_iterator it =
+      _request.getCgi_env().begin();
+  std::map<std::string, std::string>::const_iterator ite =
+      _request.getCgi_env().end();
+
+  for (; it != ite; it++) {
+    env_strings.push_back(std::string(it->first) + "=" + std::string(it->second));
+  }
+
+  for (size_t i = 0; i < env_strings.size(); i++) {
+      envp.push_back(const_cast<char *>(env_strings[i].c_str()));
+  }
+  envp.push_back(NULL);
+  arg.push_back(const_cast<char *>((_request.getResource().c_str())));
+
+  std::string content_length_s = _request.getCgi_env().at("CONTENT_LENGTH");
+  int ct;
+  std::stringstream s(content_length_s);
+  s >> ct;
+
+  int pipe_body[2];
+  int pipe_resp[2];
+  if (pipe(pipe_body) == -1) {
+    std::cerr << "Error: pipe: " << strerror(errno) << std::endl;
+    return std::string("");
+  }
+  if (pipe(pipe_resp) == -1) {
+    std::cerr << "Error: pipe: " << strerror(errno) << std::endl;
+    return std::string("");
+  }
+  pid_t pid = fork();
+  if (pid < 0) {
+    std::cerr << "Error: fork: " << strerror(errno) << std::endl;
+    return std::string("");
+  }
+  if (pid == 0) {
+    dup2(pipe_body[0], STDIN_FILENO);
+    dup2(pipe_resp[1], STDOUT_FILENO);
+    close(pipe_body[1]);
+    close(pipe_resp[0]);
+    std::string path = _request.getDocumentRoot() +
+                       _request.getResource().substr(
+                           0, _request.getResource().find(".py") + 3);
+    execve(path.c_str(), arg.data(), envp.data());
+    _exit(1);
+  } else {
+    close(pipe_body[0]);
+    close(pipe_resp[1]);
+    // send  body
+    if (ct > 0) {
+      write(pipe_body[1], _request.getBody().c_str(), ct);
+    }
+    close(pipe_body[1]);
+    // read resp
+    char buf[4096];
+    std::string resp;
+    size_t n;
+    while ((n = read(pipe_resp[0], buf, sizeof(buf))) > 0)
+      resp.append(buf, n);
+    waitpid(pid, NULL, 0);
+    close(pipe_resp[0]);
+    return resp;
+  }
+}

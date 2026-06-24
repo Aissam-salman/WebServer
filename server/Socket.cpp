@@ -1,39 +1,38 @@
+#include <cstring>
+#include <iostream>
 #include <netinet/in.h>
 #include <stdexcept>
-#include <iostream>
-#include <cstring>
 #include <sys/socket.h>
 
 #include "Socket.hpp"
 #include "utils.hpp"
 
-Socket::Socket(void) {
-    std::cout << "Default constructor called" << std::endl;
-}
+Socket::Socket(void) { std::cout << "Default constructor called" << std::endl; }
 
 Socket::Socket(std::string name): _name(name) {
     std::cout << "Name constructor called" << std::endl;
 }
 
 Socket::Socket(const Socket &src) {
-    std::cout << "Copy constructor called" << std::endl;
-    *this = src;
+  std::cout << "Copy constructor called" << std::endl;
+  *this = src;
 }
 
-Socket& Socket::operator= (const Socket &other) {
-    std::cout << "Copy assignment operator called" << std::endl;
-    if (this != &other)
-        _name = other._name;
-    return (*this);
+Socket &Socket::operator=(const Socket &other) {
+  std::cout << "Copy assignment operator called" << std::endl;
+  if (this != &other) {
+    _name = other._name;
+    _listen_fd = other._listen_fd;
+    _addr = other._addr;
+  }
+  return (*this);
 }
 
-Socket::~Socket() {
-    std::cout << "Destructor called" << std::endl;
-}
+Socket::~Socket() { std::cout << "Destructor called" << std::endl; }
 
-void    Socket::setSocket(int port) {
-    int ret = 0;
-    int yes = 1;
+void Socket::setSocket(int port) {
+  int ret = 0;
+  int yes = 1;
 
     // ALLOCATING THE SOCKET FOR THE LISTENING FD
     _listen_fd = socket(AF_INET, SOCK_STREAM, 0);

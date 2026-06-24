@@ -1,0 +1,56 @@
+[
+  {
+    "arguments": [
+      "/usr/lib64/ccache/c++",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-Wswitch",
+      "-Wpedantic",
+      "-Wshadow",
+      "-Wnon-virtual-dtor",
+      "-Wold-style-cast",
+      "-std=c++98",
+      "-I",
+      "server",
+      "-I",
+      "client",
+      "-I",
+      "utils",
+      "-c",
+      "-o",
+      "objs/server/config/Lexer.o",
+      "server/config/Lexer.cpp"
+    ],
+    "directory": "/home/salman/Work/LAB/WebServer",
+    "file": "/home/salman/Work/LAB/WebServer/server/config/Lexer.cpp",
+    "output": "/home/salman/Work/LAB/WebServer/objs/server/config/Lexer.o"
+  },
+  {
+    "arguments": [
+      "/usr/lib64/ccache/c++",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-Wswitch",
+      "-Wpedantic",
+      "-Wshadow",
+      "-Wnon-virtual-dtor",
+      "-Wold-style-cast",
+      "-std=c++98",
+      "-I",
+      "server",
+      "-I",
+      "client",
+      "-I",
+      "utils",
+      "-c",
+      "-o",
+      "objs/utils/utils.o",
+      "utils/utils.cpp"
+    ],
+    "directory": "/home/salman/Work/LAB/WebServer",
+    "file": "/home/salman/Work/LAB/WebServer/utils/utils.cpp",
+    "output": "/home/salman/Work/LAB/WebServer/objs/utils/utils.o"
+  }
+]

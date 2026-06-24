@@ -1,6 +1,7 @@
 #ifndef SERVER_HPP
 #define SERVER_HPP
 
+#include <map>
 #include <string>
 #include <vector>
 #include <map>
@@ -31,6 +32,8 @@ class Server {
 	std::vector<Location>&	getLocations(void) ;
 	std::vector<Socket>&	getSockets(void) ;
 	MapIntStr&				getErrorPages(void) ;
+  void run(void);
+	static void handle_sigint(int);
 	
 };
 
