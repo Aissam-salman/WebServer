@@ -8,34 +8,52 @@
 
 bool Server::g_running = false;
 
-Server::Server(void) {
-  std::cout << BOLD_CYAN << "Server Default constructor called" << RESET
-            << std::endl;
+// ==== ~TORS ====
+Server::Server(void) : _max_body_size(-1) {
+	std::cout << BOLD_CYAN << "Server Default constructor called" << RESET << std::endl;
 }
 
-Server::Server(std::string name) : m_name(name) {
-  std::cout << BOLD_CYAN << "Server Name constructor called" << RESET
-            << std::endl;
-  g_running = true;
-}
-
-Server::Server(const Server &src) {
-  std::cout << BOLD_BLUE << "Server Copy constructor called" << RESET
-            << std::endl;
-  *this = src;
-}
-
-Server &Server::operator=(const Server &other) {
-  std::cout << BOLD_BLUE << "Server Copy assignment operator called" << RESET
-            << std::endl;
-  if (this != &other)
-    m_name = other.m_name;
-  return (*this);
+Server::Server(std::string name) : _name(name), _max_body_size(-1) {
+	std::cout << BOLD_CYAN << "Server Name constructor called" << RESET << std::endl;
 }
 
 Server::~Server() {
-  std::cout << BOLD_RED << "Server Destructor called" << RESET << std::endl;
+	std::cout << BOLD_RED << "Server Destructor called" << RESET << std::endl;
 }
+
+// ==== GETTERS ====
+std::vector<Location>&	Server::getServerLocationsVector(void) {
+	return (_locations);
+}
+
+std::vector<Location>&	Server::getLocations(void) {
+	return (_locations);
+}
+
+std::vector<Socket>&	Server::getSockets(void) {
+	return (_sockets);
+}
+
+MapIntStr&	Server::getErrorPages(void) {
+	return (_error_pages);
+}
+
+// ==== OUTPUTS ====
+void	Server::printServer(void) {
+	display("[ ==== GLOBAL INFOS ==== ]");
+	display("SERVER NAME = " + _name);
+	std::cout << "NBR OF SOCKETS = " << _sockets.size() << std::endl;
+	for (size_t i = 0; i < _sockets.size(); i++) {
+		std::cout << BOLD_CYAN << "LOCATION NUMBER " << i << endofline;
+		_sockets[i].printSocket();
+		std::cout << endofline;
+	}
+	std::cout << endofline;
+	for (size_t i = 0; i < _locations.size(); i++) {
+		std::cout << BOLD_CYAN << "LOCATION NUMBER " << i << endofline;
+		_locations[i].printLocation();
+		std::cout << endofline;
+	}
 
 void Server::handle_sigint(int) {
   Server::g_running = false;

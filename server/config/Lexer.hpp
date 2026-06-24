@@ -2,51 +2,30 @@
 # define LEXER_HPP
 
 #include <string>
-
-#include <string>
 #include <vector>
 #include <fstream>
-// #include <sstream>
 
-static const std::string GLOBAL_KEY[] =  {
-    "server"
-};
-
-static const std::string SERVER_KEY[] = {
-    "listen", "server_name", "client_max_body_size",
-    "error_page", "location"
-};
-
-static const std::string LOCATION_KEY[] = {
-    "root", "index", "autoindex", "methods", "upload_dir",
-    "cgi", "return", "client_max_body_size"
-};
-
-bool    isValidKey(const std::string &key, const std::string keys_list[], const size_t size) {
-    for (size_t i = 0; i < size; i++) {
-        if (keys_list[i] == key)
-            return (true);
-    }
-    return (false);
-}
-
+#include "Token.hpp"
 class Lexer {
     private:
-        std::string _name;
-        std::vector<std::string> _tokens_vector;
-        std::ifstream _conf_file_content;
+        std::string                 _raw_file_path;
+        std::ifstream               _raw_conf_file;
+        std::vector<Token>          _tokens_vector;
 
-    public:
-        Lexer(void);
-        Lexer(std::string name);
+
+        // IGNORED CONSTRUCTORS
         Lexer(const Lexer &src);
         Lexer& operator= (const Lexer &other);
+
+    public:
+        Lexer(std::string conf_file_path);
         ~Lexer();
 
+        void    initRawVector(void); // Creates the raw string vector for each word / separator
+        std::vector<Token> getTokenVector(void);
+
         // OUTPUTS / DEMOS
-    void    printTokens(void) const ; 
-
-
+        void    printRawConfFile(void) ; 
 };
 
 #endif
