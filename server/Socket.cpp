@@ -1,8 +1,9 @@
 #include <cstring>
 #include <iostream>
-#include <netinet/in.h>
-#include <stdexcept>
 #include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <stdexcept>
 
 #include "Socket.hpp"
 #include "utils.hpp"
@@ -76,7 +77,7 @@ int     Socket::getSocketFd(void) {
 
 void    Socket::printSocket(void) {
     std::cout << BOLD_GREEN << "{==== SOCKET " << _name << " ====} " << endofline;
-    std::cout << "Family: " << addr.sin_family << std::endl;          // 2 = AF_INET
-    std::cout << "Port:   " << ntohs(addr.sin_port) << std::endl;     // ntohs! → 8080
-    std::cout << "IP:     " << inet_ntoa(addr.sin_addr) << std::endl; // "0.0.0.0"
+    std::cout << "Family: " << _addr.sin_family << std::endl;          // 2 = AF_INET
+    std::cout << "Port:   " << ntohs(_addr.sin_port) << std::endl;     // ntohs! → 8080
+    std::cout << "IP:     " << inet_ntoa(_addr.sin_addr) << std::endl; // "0.0.0.0"
 }

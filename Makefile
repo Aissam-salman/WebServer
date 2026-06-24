@@ -4,7 +4,7 @@ CXX      = c++
 CXXFLAGS = -Wall -Wextra -Werror -Wswitch \
            -Wpedantic -Wshadow -Wnon-virtual-dtor -Wold-style-cast \
            -std=c++98 -MMD -MP \
-           -I server  -I utils  -I server/config -I server/cgi
+           -I server  -I utils  -I server/config -I server/cgi -I server/client
 
 LDFLAGS  =
 
@@ -16,6 +16,8 @@ SERVER_SRC = \
     server/Socket.cpp \
 		server/config/Lexer.cpp \
     server/client/Client.cpp \
+		server/config/Token.cpp \
+    server/config/configutils.cpp \
 		server/Request.cpp \
 		server/cgi/Cgi.cpp \
     utils/utils.cpp \
