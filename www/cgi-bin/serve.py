@@ -7,6 +7,7 @@ import sqlite3
 import json
 import logging
 from urllib.parse import parse_qs, unquote_plus
+from email import message_from_string
 
 
 class ContentType(Enum):
@@ -27,7 +28,7 @@ class Request:
         path_translated: str,
         query_string: str,
         resp: str = "",
-        body=None,
+        body:str ="",
         conn: sqlite3.Connection = None,
     ) -> None:
         self.method = method
@@ -150,6 +151,7 @@ class Request:
     def Post(self):
         print("[DEBUG] = POST")
         cursor = self.conn.cursor()
+        print(f"[DEBUG] Content-Type -> {self.content_type}")
 
         match self.content_type:
             case ContentType.X_WWW_FORM_URLENCODED.value:
@@ -160,7 +162,6 @@ class Request:
                 lang = flat.get("lang", "")
                 content = flat.get("content", "")
                 if title != "" and lang != "" and content != "":
-                    print(f"title: {title}, lang: {lang}, content: {content}")
                     query = (
                         "INSERT INTO articles (title, lang, content) VALUES (?, ?, ?);"
                     )
@@ -171,9 +172,26 @@ class Request:
                     return
                 self._bad_request()
             case ContentType.JSON.value:
-                print("Json bro")
+                print("json post")
+                data = json.loads(self.body)
+                required_key =  {"title", "lang", "content"}
+                is_missing  = required_key - data.keys()
+                if is_missing:
+                    self._bad_request()
+                title = data['title']
+                lang = data['lang']
+                content = data['content']
+                query = (
+                    "INSERT INTO articles (title, lang, content) VALUES (?, ?, ?);"
+                )
+                print(f"title= {title}, lang= {lang}, content= {content}")
+                cursor.execute(query, (title, lang, content))
+                self.conn.commit()
+                new_id = cursor.lastrowid
+                self._created(new_id=new_id)
             case ContentType.MULTIPART_FORM_DATA.value:
                 print("Multiform bro")
+                self.parse_multipart()
             case ContentType.TEXT_PLAIN.value:
                 print("text plain normal")
             case _:
@@ -185,9 +203,8 @@ class Request:
 
     def dispatch(self) -> None:
         if self.content_length > 0:
-            print("[DEBUG]->body: ", end="")
             self.body = sys.stdin.read(self.content_length)
-            print(self.body)
+            print(f"[DEBUG]->body: {self.body}")
 
         match self.method:
             case "GET":
@@ -198,6 +215,21 @@ class Request:
                 self.Delete()
             case _:
                 print("OTHER")
+
+
+    def parse_multipart(self):
+        print("[DEBUG] -> parsing multipart")
+        raw = f"Content-Type: {self.content_type}\r\n\r\n{self.body}"
+        msg = message_from_string(raw)
+        params = {}
+        for param in msg.get_payload():
+            name = param.get_param("name", header="Content-Disposition")
+            value = param.get_payload()
+            params[name] = value
+        print(params)
+        return params
+
+
 
 
 def debug():
@@ -266,7 +298,7 @@ def main() -> int:
     conn = sqlite3.connect("db.sql")
     init_db(conn)
 
-    debug()
+    # debug()
     rq = Request(
         method=os.environ.get("REQUEST_METHOD", ""),
         script_filename=os.environ.get("SCRIPT_FILENAME", "www/cgi-bin/serve.py"),

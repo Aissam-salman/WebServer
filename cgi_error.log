@@ -88,3 +88,171 @@ Traceback (most recent call last):
     print(params["title"])
           ~~~~~~^^^^^^^^^
 KeyError: 'title'
+2026-06-24 13:03:04,853 - ERROR - Exception non gérée
+Traceback (most recent call last):
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 286, in <module>
+    main()
+    ~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 281, in main
+    rq.dispatch()
+    ~~~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 197, in dispatch
+    self.Post()
+    ~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 176, in Post
+    print(json_str.title[0])
+          ~~~~~~~~~~~~~~^^^
+TypeError: 'builtin_function_or_method' object is not subscriptable
+2026-06-24 13:10:43,360 - ERROR - Exception non gérée
+Traceback (most recent call last):
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 300, in <module>
+    main()
+    ~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 295, in main
+    rq.dispatch()
+    ~~~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 210, in dispatch
+    self.Post()
+    ~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 174, in Post
+    data = json.load(self.body)
+  File "/usr/lib64/python3.14/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+                 ^^^^^^^
+AttributeError: 'str' object has no attribute 'read'
+2026-06-24 13:11:00,912 - ERROR - Exception non gérée
+Traceback (most recent call last):
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 300, in <module>
+    main()
+    ~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 295, in main
+    rq.dispatch()
+    ~~~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 210, in dispatch
+    self.Post()
+    ~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 174, in Post
+    data = json.load(self.body)
+  File "/usr/lib64/python3.14/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+                 ^^^^^^^
+AttributeError: 'str' object has no attribute 'read'
+2026-06-24 13:11:05,983 - ERROR - Exception non gérée
+Traceback (most recent call last):
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 300, in <module>
+    main()
+    ~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 295, in main
+    rq.dispatch()
+    ~~~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 210, in dispatch
+    self.Post()
+    ~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 174, in Post
+    data = json.load(self.body)
+  File "/usr/lib64/python3.14/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+                 ^^^^^^^
+AttributeError: 'str' object has no attribute 'read'
+2026-06-24 13:11:30,913 - ERROR - Exception non gérée
+Traceback (most recent call last):
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 298, in <module>
+    main()
+    ~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 293, in main
+    rq.dispatch()
+    ~~~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 209, in dispatch
+    self.Post()
+    ~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 173, in Post
+    data = json.load(self.body)
+  File "/usr/lib64/python3.14/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+                 ^^^^^^^
+AttributeError: 'str' object has no attribute 'read'
+2026-06-24 13:12:23,095 - ERROR - Exception non gérée
+Traceback (most recent call last):
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 299, in <module>
+    main()
+    ~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 294, in main
+    rq.dispatch()
+    ~~~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 210, in dispatch
+    self.Post()
+    ~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 173, in Post
+    data = json.load(self.body)
+  File "/usr/lib64/python3.14/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+                 ^^^^^^^
+AttributeError: 'str' object has no attribute 'read'
+2026-06-24 13:12:39,583 - ERROR - Exception non gérée
+Traceback (most recent call last):
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 300, in <module>
+    main()
+    ~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 295, in main
+    rq.dispatch()
+    ~~~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 211, in dispatch
+    self.Post()
+    ~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 174, in Post
+    data = json.load(self.body)
+  File "/usr/lib64/python3.14/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+                 ^^^^^^^
+AttributeError: 'str' object has no attribute 'read'
+2026-06-24 13:12:53,562 - ERROR - Exception non gérée
+Traceback (most recent call last):
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 301, in <module>
+    main()
+    ~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 296, in main
+    rq.dispatch()
+    ~~~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 212, in dispatch
+    self.Post()
+    ~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 174, in Post
+    data = json.load(self.body)
+  File "/usr/lib64/python3.14/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+                 ^^^^^^^
+AttributeError: 'str' object has no attribute 'read'
+2026-06-24 13:13:30,599 - ERROR - Exception non gérée
+Traceback (most recent call last):
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 300, in <module>
+    main()
+    ~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 295, in main
+    rq.dispatch()
+    ~~~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 211, in dispatch
+    self.Post()
+    ~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 174, in Post
+    data = json.load(json.dumps(self.body))
+  File "/usr/lib64/python3.14/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+                 ^^^^^^^
+AttributeError: 'str' object has no attribute 'read'
+2026-06-24 13:14:16,841 - ERROR - Exception non gérée
+Traceback (most recent call last):
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 300, in <module>
+    main()
+    ~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 295, in main
+    rq.dispatch()
+    ~~~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 211, in dispatch
+    self.Post()
+    ~~~~~~~~~^^
+  File "/home/salman/Work/LAB/WebServer/www/cgi-bin/serve.py", line 174, in Post
+    data = json.load(json.dumps(self.body))
+  File "/usr/lib64/python3.14/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+                 ^^^^^^^
+AttributeError: 'str' object has no attribute 'read'
