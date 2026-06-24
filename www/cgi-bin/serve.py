@@ -130,6 +130,7 @@ class Request:
     def Post(self):
         print("POST")
         self.body = sys.stdin.read(self.content_length)
+        print(self.body)
 
     def Delete(self):
         print("DELETE")
