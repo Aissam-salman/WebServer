@@ -25,10 +25,6 @@ public:
 	void setState(parser_state state);
 	std::vector<Token> getTokenVector(void);
 
-	void parsingTokensVector(void);
-	void affectState(Token &token, size_t &index);
-	void interpretState(Token &token, size_t &index, Server& server);
-
 	void printState(void);
 };
 

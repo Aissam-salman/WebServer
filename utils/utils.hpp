@@ -1,6 +1,7 @@
 #ifndef UTILS_HPP
 # define UTILS_HPP
 
+#include <iostream>
 #include <string>
 #include <map>
 
@@ -55,16 +56,18 @@ enum e_codes {
 
 // ENUM FOR METHODS
 enum e_methods {
-	GET,
-	HEAD,
-	POST,
-	PUT,
-	DELETE,
-	PATCH,
-	OPTIONS,
-	CONNECT,
-	TRACE
+	GET = 1 << 0,
+	HEAD = 1 << 1,
+	POST = 1 << 2,
+	PUT = 1 << 3,
+	DELETE = 1 << 4,
+	PATCH = 1 << 5,
+	OPTIONS = 1 << 6,
+	CONNECT = 1 << 7,
+	TRACE = 1 << 8
 };
+
+void	printSetMethods(int flag);
 
 
 typedef std::map<int, std::string> MapIntStr;

@@ -15,9 +15,9 @@ SERVER_SRC = \
     server/Location.cpp \
     server/Socket.cpp \
 	server/config/Lexer.cpp \
-	server/config/Parser.cpp \
 	server/config/Token.cpp \
 	server/config/configutils.cpp \
+	server/config/Parser.cpp \
     utils/utils.cpp
 
 # CLIENT_SRC = \

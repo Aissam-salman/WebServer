@@ -7,9 +7,9 @@
 
 class Socket {
     private:
-        std::string     m_name;
-        int             m_listen_fd;
-        sockaddr_in     m_addr;
+        std::string     _name;
+        int             _listen_fd;
+        sockaddr_in     _addr;
 
     public:
         Socket(void);
@@ -20,6 +20,8 @@ class Socket {
 
         void setSocket(int port);
         int     getSocketFd(void);
+
+        void    printSocket(void);
 };
 
 #endif

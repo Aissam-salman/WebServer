@@ -5,12 +5,13 @@
 #include <vector>
 
 struct Token {
-    enum token_type { DIRECTIVE, PARAMETER, OPEN_BRACKET, CLOSED_BRACKET, SEMICOLON, DEFAULT };
+    enum token_type {WORD, DIRECTIVE, PARAMETER_STR, PARAMETER_NBR, OPEN_BRACKET, CLOSED_BRACKET, SEMICOLON, DEFAULT };
 
     std::string _value;
     token_type  _type;
+    int         _line;
 
-    Token(std::string value);
+    Token(std::string value, int line_nbr);
     ~Token();
     void    printToken(void) const;
     void    setSeparatorType(void);

@@ -14,7 +14,7 @@
 #include "utils.hpp"
 #include "Socket.hpp"
 #include "Server.hpp"
-#include "Parser.hpp"
+// #include "Parser.hpp"
 #include "Lexer.hpp"
 
 
@@ -28,7 +28,8 @@ void signal_sigint(int) {
 }
 
 
-int main(int argc, char *argv[]) {
+// int main (void) {
+int main(int argc, char **argv) {
 	try {
 		if (argc != 2)
 			throw std::runtime_error ("Wrong number of argument ! Try with : ./webserv [config file path]\n");
@@ -36,21 +37,29 @@ int main(int argc, char *argv[]) {
 		// SETTING UP UTILS
 			
 		// INIT SERVER
-		Server server;
+		Server server("SERVER TEST");
 
 		// FIRST STAGE LEXER
 		Lexer lexer(argv[1]);
 		lexer.initRawVector();
-		lexer.initTokensVector();
 		printTokens(lexer.getTokenVector());
 
+		Location test_location("root");
+		test_location.setMethods(GET);
+		test_location.setMethods(PUT);
+
+		Location test_location2("test");
+		test_location2.setMethods(GET);
+		test_location2.setMethods(PUT);
+
+		server.getLocations().push_back(test_location);
+		server.getLocations().push_back(test_location2);
 		// SECOND STAGE PARSER
-		Parser parser(lexer.getTokenVector(), server);
-		// printTokens(parser.getTokenVector());
-		parser.parsingTokensVector();
 
 		Socket socket1("SocketTest");
+		server.getSockets().push_back(socket1);
 
+		server.printServer();
 
 		signal(SIGINT, signal_sigint);
 		int ret = 0;

@@ -2,17 +2,17 @@
 # define LOCATION_HPP
 
 #include <string>
-#include <vector>
+
 #include "utils.hpp"
 
 class Location {
 	private:
 		std::string				    _name;
+		long						_max_body_size;
 		std::string				    _root_path;
 		std::string				    _index_path;
-		std::vector<e_methods>	    _allowed_methods;
-		long						_max_body_size;
 		bool						_autoindex;
+		int							_methods_flag; // SETS BITS CORRESPONDING TO ALLOWED METHODS
 
 	public:
 
@@ -20,6 +20,9 @@ class Location {
 		Location(const Location &src);
 		Location& operator= (const Location &other);
 		~Location();
+
+		void	printLocation(void);
+		void	setMethods(e_methods method);
 };
 
 #endif

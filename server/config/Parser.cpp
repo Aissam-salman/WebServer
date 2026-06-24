@@ -26,40 +26,40 @@ std::vector<Token> Parser::getTokenVector(void) {
 }
 
 // ===== METHODS =====
-void	Parser::affectState(Token &token, size_t &index) {
-	switch(_state) {
-		case GLOBAL : {
-            break;
-		}
-		case SERVER : {
-            break;
-		}
-		case LOCATION : {
-			break;
-		}
-	}
-}
+// void	Parser::affectState(Token &token, size_t &index) {
+// 	switch(_state) {
+// 		case GLOBAL : {
+//             break;
+// 		}
+// 		case SERVER : {
+//             break;
+// 		}
+// 		case LOCATION : {
+// 			break;
+// 		}
+// 	}
+// }
 
-void	Parser::interpretState(Token &token, size_t &index, Server& server) {
-	switch (_state) {
-		case GLOBAL : {
-			break;
-		}
-		case SERVER : {
-			break;
-		}
-		case LOCATION : {
-			break;
-		}
-	}
-}
+// void	Parser::interpretState(Token &token, size_t &index, Server& server) {
+// 	switch (_state) {
+// 		case GLOBAL : {
+// 			break;
+// 		}
+// 		case SERVER : {
+// 			break;
+// 		}
+// 		case LOCATION : {
+// 			break;
+// 		}
+// 	}
+// }
 
-void	Parser::parsingTokensVector(void) {
-	for (size_t i = 0; i < _tokens_vector.size(); i++) {
-		affectState(_tokens_vector[i], i);
-		interpretState(_tokens_vector[i], i, _server);
-	}
-}
+// void	Parser::parsingTokensVector(void) {
+// 	for (size_t i = 0; i < _tokens_vector.size(); i++) {
+// 		affectState(_tokens_vector[i], i);
+// 		interpretState(_tokens_vector[i], i, _server);
+// 	}
+// }
 
 // ===== TEST/OUTPUT =====
 void	Parser::printState(void) {
