@@ -8,8 +8,8 @@
 #include "Token.hpp"
 
 
-extern const std::string GLOBAL_DIRECTIVES[];
-extern const size_t      GLOBAL_DIRECTIVES_SIZE;
+extern const std::string STATE_DIRECTIVES[];
+extern const size_t      STATE_DIRECTIVES_SIZE;
 
 extern const std::string SERVER_DIRECTIVES[];
 extern const size_t      SERVER_DIRECTIVES_SIZE;

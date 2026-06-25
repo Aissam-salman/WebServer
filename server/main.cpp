@@ -6,13 +6,14 @@
 #include <sys/poll.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <vector>
 
 
 #include "config/Lexer.hpp"
 #include "utils.hpp"
 #include "Socket.hpp"
 #include "Server.hpp"
-// #include "Parser.hpp"
+#include "Parser.hpp"
 #include "Lexer.hpp"
 
 
@@ -28,31 +29,36 @@ int main(int argc, char **argv) {
 		// SETTING UP UTILS
 			
 		// INIT SERVER
-		Server server("SERVER TEST");
 
 		// FIRST STAGE LEXER
 		Lexer lexer(argv[1]);
 		lexer.initRawVector();
-		printTokens(lexer.getTokenVector());
+		// printTokens(lexer.getTokenVector());
 
-		Location test_location("root");
-		test_location.setMethods(GET);
-		test_location.setMethods(PUT);
+		std::vector<Server> servers_vector;
+		Parser parser(lexer.getTokenVector(), servers_vector);
+		parser.initServers();
+		for (size_t i = 0; i < servers_vector.size(); i++) {
+			servers_vector[i].printServer();
+		}
+		// Location test_location("root");
+		// test_location.setMethods(GET);
+		// test_location.setMethods(PUT);
 
-		Location test_location2("test");
-		test_location2.setMethods(GET);
-		test_location2.setMethods(PUT);
+		// Location test_location2("test");
+		// test_location2.setMethods(GET);
+		// test_location2.setMethods(PUT);
 
-		server.getLocations().push_back(test_location);
-		server.getLocations().push_back(test_location2);
+
+		// server.getLocations().push_back(test_location);
+		// server.getLocations().push_back(test_location2);
 		// SECOND STAGE PARSER
 
-		Socket socket1("SocketTest");
-		server.getSockets().push_back(socket1);
+		// Socket socket1("SocketTest");
+		// server.getSockets().push_back(socket1);
 
-		server.printServer();
 
-    server.run();
+    // server.run();
   }
 	catch (runtime_error &e) {
 		std::cerr << RED << e.what() << endofline;

@@ -5,6 +5,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <sys/poll.h>
+#include <unistd.h>
 #include <vector>
 
 bool Server::_running = true;
@@ -19,6 +20,13 @@ Server::Server(std::string name) : _name(name), _max_body_size(-1) {
   std::cout << BOLD_CYAN << "Server Name constructor called" << RESET
             << std::endl;
 }
+Server::Server(const Server &src)
+    : _name(src._name), _sockets(src._sockets), _locations_vector(src._locations_vector),
+      _error_pages(src._error_pages), _max_body_size(src._max_body_size),
+      _clients(src._clients) {
+  std::cout << BOLD_CYAN << "Server Copy constructor called" << RESET
+            << std::endl;
+}
 
 Server::~Server() {
   std::cout << BOLD_RED << "Server Destructor called" << RESET << std::endl;
@@ -26,18 +34,23 @@ Server::~Server() {
 
 // ==== GETTERS ====
 std::vector<Location> &Server::getServerLocationsVector(void) {
-  return (_locations);
+  return (_locations_vector);
 }
 
-std::vector<Location> &Server::getLocations(void) { return (_locations); }
+std::vector<Location> &Server::getLocations(void) { return (_locations_vector); }
 
 std::vector<Socket> &Server::getSockets(void) { return (_sockets); }
 
 MapIntStr &Server::getErrorPages(void) { return (_error_pages); }
 
+void  Server::addLocation(Location& new_location) {
+  _locations_vector.push_back(new_location);
+}
+
+
 // ==== OUTPUTS ====
 void Server::printServer(void) {
-  display("[ ==== GLOBAL INFOS ==== ]");
+  display("\n[ ==== GLOBAL INFOS ==== ]");
   display("SERVER NAME = " + _name);
   std::cout << "NBR OF SOCKETS = " << _sockets.size() << std::endl;
   for (size_t i = 0; i < _sockets.size(); i++) {
@@ -46,11 +59,13 @@ void Server::printServer(void) {
     std::cout << endofline;
   }
   std::cout << endofline;
-  for (size_t i = 0; i < _locations.size(); i++) {
+  for (size_t i = 0; i < _locations_vector.size(); i++) {
     std::cout << BOLD_CYAN << "LOCATION NUMBER " << i << endofline;
-    _locations[i].printLocation();
+    _locations_vector[i].printLocation();
     std::cout << endofline;
   }
+
+  std::cout << BOLD_MAGENTA << "[===========-------===========]" << endofline;
 }
 
 void Server::handle_sigint(int) {
