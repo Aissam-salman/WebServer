@@ -95,21 +95,30 @@ void	Parser::parseDirective(size_t& index) {
 			break;
 	}
 	findDirectiveTokenVector(index);
+	// Fill appropriate field if valid
 }
 
 void	Parser::parseStateDirective(size_t& index) {
+	const std::string& key = _tokens_vector[index]._value;
+
 	if (_tokens_vector[index]._value == "server" && _tokens_vector[index + 1]._type == Token::OPEN_BRACKET) {
+		if (_state != GLOBAL)
+				throw std::runtime_error("Directive '" + key + "' is not valid in location scope");
 		Server new_server;
 		_servers_vector.push_back(new_server);
 		upperScope();
 		index++;
 	}
-	if (_tokens_vector[index]._value == "location" && _tokens_vector[index + 2]._type == Token::OPEN_BRACKET) {
+	else if (_tokens_vector[index]._value == "location" && _tokens_vector[index + 2]._type == Token::OPEN_BRACKET) {
+		if (_state != SERVER)
+				throw std::runtime_error("Directive '" + key + "' is not valid in location scope");
 		Location new_location(_tokens_vector[index + 1]._value);
 		_servers_vector.back().addLocation(new_location);
 		upperScope();
 		index += 2;
 	}
+	else
+		throw std::runtime_error ("Invalid syntax for key " + key );
 }
 
 // MAIN PARSING FUNCTION -> CREATING THE CLASSES
@@ -119,8 +128,10 @@ void	Parser::initServers(void) {
 			lowerScope();
 		else if (isValidKey(_tokens_vector[i]._value, STATE_DIRECTIVES, STATE_DIRECTIVES_SIZE))
 			parseStateDirective(i);
-		else
+		else if (isValidKey(_tokens_vector[i]._value, SERVER_DIRECTIVES, SERVER_DIRECTIVES_SIZE) || isValidKey(_tokens_vector[i]._value, LOCATION_DIRECTIVES, LOCATION_DIRECTIVES_SIZE))
 			parseDirective(i);
+		else
+			throw std::runtime_error ("Invalide directive " + _tokens_vector[i]._value + " found in file");
 	}
 	if (_state != GLOBAL)
 		throw std::runtime_error ("Incomplete conf file");
