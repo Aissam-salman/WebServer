@@ -72,7 +72,7 @@ void Request::parseRequestLine(const std::string &first_line) {
   std::string extra;
   if (iss >> extra)
     throw std::invalid_argument("400");
-  if (method != "GET" && method != "POST" && method != "DELETE")
+  if (method != "GET" && method != "POST" && method != "DELETE" && method != "PUT")
     throw std::runtime_error("405");
   if (http_version != "HTTP/1.1" && http_version != "HTTP/1.0")
     throw std::runtime_error("505");

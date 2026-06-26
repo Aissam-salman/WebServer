@@ -6,7 +6,7 @@ import sys
 import sqlite3
 import json
 import logging
-from urllib.parse import parse_qs, unquote_plus
+from urllib.parse import parse_qs
 from email import message_from_string
 
 
@@ -20,15 +20,15 @@ class ContentType(Enum):
 class Request:
     def __init__(
         self,
-        method: str,
-        script_filename: str,
-        path_info: str,
-        content_length: int,
-        content_type: str,
-        path_translated: str,
-        query_string: str,
+        method: str = "",
+        script_filename: str = "",
+        path_info: str = "",
+        content_length: int = 0,
+        content_type: str = "",
+        path_translated: str = "",
+        query_string: str = "",
         resp: str = "",
-        body:str ="",
+        body: str = "",
         conn: sqlite3.Connection = None,
     ) -> None:
         self.method = method
@@ -43,18 +43,22 @@ class Request:
         self.conn = conn
 
     def _not_found(self):
-        print("HTTP/1.1 404 Not found\r\nConnection: close\r\n\r\n", end="")
+        print("HTTP/1.1 404 Not found\r")
+        print("Connection: close\r")
+        print("\r")
 
     def _bad_request(self):
-        print("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n", end="")
+        print("HTTP/1.1 400 Bad Request\r")
+        print("Connection: close\r")
+        print("\r")
 
-    #     "HTTP/1.1 200 OK\r\nContent-Length: 17\r\nContent-Type: "
-    #     "text/plain\r\nConnection: close\r\n\r\nRESP FROM WEBSERV";
     def _OK(self, text):
-        print(
-            f"HTTP/1.1 200 OK\r\nContent-Length: {len(text)}\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{text}",
-            end="",
-        )
+        print("HTTP/1.1 200 OK\r")
+        print(f"Content-Length: {len(text)}\r")
+        print("Content-Type: application/json\r")
+        print("Connection: close\r")
+        print("\r")
+        print(text, end="")
 
     def _created(self, new_id):
         body = json.dumps({"id": new_id, "message": "Article created"})
@@ -62,7 +66,12 @@ class Request:
         print(f"Content-Type: application/json\r")
         print(f"Content-Length: {len(body)}\r")
         print("\r")
-        print(body)
+        print(body, end="")
+
+    def _no_content(self):
+        print("HTTP/1.1 204 No Content\r")
+        print("Connection: close\r")
+        print("\r")
 
     def Get(self):
         self.conn.row_factory = sqlite3.Row
@@ -149,85 +158,146 @@ class Request:
         self.conn.commit()
 
     def Post(self):
-        print("[DEBUG] = POST")
-        print(f"[DEBUG] Content-Type -> {self.content_type}")
-        cursor = self.conn.cursor()
-        if  self.content_type.startswith(ContentType.MULTIPART_FORM_DATA.value):
+        # print("[DEBUG] = POST")
+        # print(f"[DEBUG] Content-Type -> {self.content_type}")
+        if not self.content_type:
+            self._bad_request()
+            return
+        title = lang = content = ""
+        if self.content_type.startswith(ContentType.MULTIPART_FORM_DATA.value):
             params = self.parse_multipart()
             title = params.get("title", "")
             lang = params.get("lang", "")
             content = params.get("content", "")
-            if title != "" and lang != "" and content != "":
-                query = (
-                    "INSERT INTO articles (title, lang, content) VALUES (?, ?, ?);"
-                )
-                cursor.execute(query, (title, lang, content))
-                self.conn.commit()
-                new_id = cursor.lastrowid
-                self._created(new_id=new_id)
+        elif self.content_type == ContentType.X_WWW_FORM_URLENCODED.value:
+            params = parse_qs(self.body)
+            flat = {k: v[0] for k, v in params.items()}
+            title = flat.get("title", "")
+            lang = flat.get("lang", "")
+            content = flat.get("content", "")
+        elif self.content_type == ContentType.JSON.value:
+            try:
+                data = json.loads(self.body)
+            except json.JSONDecodeError:
+                self._bad_request()
                 return
-            self._bad_request()
+            required_key = {"title", "lang", "content"}
+            if not required_key.issubset(data):
+                self._bad_request()
+                return
+            title = data["title"]
+            lang = data["lang"]
+            content = data["content"]
         else:
-            match self.content_type:
-                case ContentType.X_WWW_FORM_URLENCODED.value:
-                    print("x_www_form")
-                    params = parse_qs(self.body)
-                    flat = {k: v[0] for k, v in params.items()}
-                    title = flat.get("title", "")
-                    lang = flat.get("lang", "")
-                    content = flat.get("content", "")
-                    if title != "" and lang != "" and content != "":
-                        query = (
-                            "INSERT INTO articles (title, lang, content) VALUES (?, ?, ?);"
-                        )
-                        cursor.execute(query, (title, lang, content))
-                        self.conn.commit()
-                        new_id = cursor.lastrowid
-                        self._created(new_id=new_id)
-                        return
-                    self._bad_request()
-                case ContentType.JSON.value:
-                    print("json post")
-                    data = json.loads(self.body)
-                    required_key =  {"title", "lang", "content"}
-                    is_missing  = required_key - data.keys()
-                    if is_missing:
-                        self._bad_request()
-                    title = data['title']
-                    lang = data['lang']
-                    content = data['content']
-                    query = (
-                        "INSERT INTO articles (title, lang, content) VALUES (?, ?, ?);"
-                    )
-                    print(f"title= {title}, lang= {lang}, content= {content}")
-                    cursor.execute(query, (title, lang, content))
-                    self.conn.commit()
-                    new_id = cursor.lastrowid
-                    self._created(new_id=new_id)
-                case ContentType.TEXT_PLAIN.value:
-                    self._bad_request()
-                case _:
-                    self._bad_request()
+            self._bad_request()
+            return
+        if not all((title, lang, content)):
+            self._bad_request()
+            return
+        cursor = self.conn.cursor()
+        query = "INSERT INTO articles (title, lang, content) VALUES (?, ?, ?);"
+        cursor.execute(query, (title, lang, content))
         self.conn.commit()
+        new_id = cursor.lastrowid
+        self._created(new_id=new_id)
 
     def Delete(self):
-        print("DELETE")
+        cursor = self.conn.cursor()
+        if self.path_info == "":
+            self._bad_request()
+            return
+        info = self.path_info.split("/")[1:]
+        id = info[1]
+        if len(info) == 2 and info[0] in "article" and int(id) > 0:
+            query = "DELETE FROM articles WHERE id = ?"
+            cursor.execute(query, (id))
+            self.conn.commit()
+            self._no_content()
+            return
+        self._bad_request()
+
+    def Put(self):
+        if not self.content_type or not self.path_info:
+            self._bad_request()
+            return
+        info = self.path_info.split("/")[1:]
+        if len(info) != 2 or info[0] != "article":
+            self._bad_request()
+            return
+
+        try:
+            id = int(info[1])
+            if id <= 0:
+                raise ValueError
+        except ValueError:
+            self._bad_request()
+            return
+        title = lang = content = ""
+
+        if self.content_type.startswith(ContentType.MULTIPART_FORM_DATA.value):
+            params = self.parse_multipart()
+            title = params.get("title", "")
+            lang = params.get("lang", "")
+            content = params.get("content", "")
+        elif self.content_type == ContentType.X_WWW_FORM_URLENCODED.value:
+            params = parse_qs(self.body)
+            flat = {k: v[0] for k, v in params.items()}
+            title = flat.get("title", "")
+            lang = flat.get("lang", "")
+            content = flat.get("content", "")
+        elif self.content_type == ContentType.JSON.value:
+            try:
+                data = json.loads(self.body)
+            except json.JSONDecodeError:
+                self._bad_request()
+                return
+
+            required_key = {"title", "lang", "content"}
+            if not required_key.issubset(data):
+                self._bad_request()
+                return
+            title = data["title"]
+            lang = data["lang"]
+            content = data["content"]
+        else:
+            self._bad_request()
+            return
+
+        if not all((title, lang, content)):
+            self._bad_request()
+            return
+        cursor = self.conn.cursor()
+        query = "UPDATE articles SET title = ?, lang = ?, content = ? WHERE id = ?"
+        cursor.execute(
+            query,
+            (
+                title,
+                lang,
+                content,
+                id,
+            ),
+        )
+        self.conn.commit()
+        if cursor.rowcount == 0:
+            self._not_found()
+        else:
+            self._no_content()
 
     def dispatch(self) -> None:
         if self.content_length > 0:
             self.body = sys.stdin.read(self.content_length)
-            print(f"[DEBUG]->body: {self.body}")
 
         match self.method:
             case "GET":
                 self.Get()
             case "POST":
                 self.Post()
+            case "PUT":
+                self.Put()
             case "DELETE":
                 self.Delete()
             case _:
-                print("OTHER")
-
+                self._bad_request()
 
     def parse_multipart(self):
         raw = f"Content-Type: {self.content_type}\r\n\r\n{self.body}"
@@ -238,8 +308,6 @@ class Request:
             value = param.get_payload()
             params[name] = value
         return params
-
-
 
 
 def debug():
@@ -278,16 +346,25 @@ def init_db(conn):
                 content TEXT NOT NULL
             )
         """)
-    cursor.executemany(
-        "INSERT OR IGNORE INTO articles (id, title, lang, content) VALUES (?, ?, ?, ?)",
-        [
-            (1, "Hello World", "en", "My first article in English."),
-            (2, "Bonjour le monde", "fr", "Mon premier article en francais."),
-            (3, "Introduction to C", "en", "Pointers, memory, and undefined behavior."),
-            (4, "Les sockets POSIX", "fr", "Comment creer un serveur TCP en C."),
-            (5, "CGI Explained", "en", "How a web server talks to a script."),
-        ],
-    )
+    query = "SELECT COUNT(*) from articles;"
+    cursor.execute(query)
+    size = cursor.fetchone()
+    if size == 0:
+        cursor.executemany(
+            "INSERT OR IGNORE INTO articles (id, title, lang, content) VALUES (?, ?, ?, ?)",
+            [
+                (1, "Hello World", "en", "My first article in English."),
+                (2, "Bonjour le monde", "fr", "Mon premier article en francais."),
+                (
+                    3,
+                    "Introduction to C",
+                    "en",
+                    "Pointers, memory, and undefined behavior.",
+                ),
+                (4, "Les sockets POSIX", "fr", "Comment creer un serveur TCP en C."),
+                (5, "CGI Explained", "en", "How a web server talks to a script."),
+            ],
+        )
     conn.commit()
 
 
