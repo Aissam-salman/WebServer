@@ -13,3 +13,6 @@ WebServ-client
 *.swo
 *~
 a.out
+
+.claude/
+CLAUDE.md

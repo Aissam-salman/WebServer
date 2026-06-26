@@ -1,4 +1,8 @@
 #include <cstddef>
+#include <cstdlib>
+#include <cctype>
+#include <cerrno>
+#include <climits>
 #include <iostream>
 #include <stdexcept>
 #include <vector>
@@ -7,15 +11,26 @@
 #include "Parser.hpp"
 #include "Server.hpp"
 #include "utils.hpp"
+#include "errors.hpp"
 #include "configutils.hpp"
 
-// TODO: wire this into a nextState() lookup, then uncomment
-// static const Transition transitions[] = {
-//     { Parser::GLOBAL,   Token::OPEN_BRACKET,   Parser::SERVER   },
-//     { Parser::SERVER,   Token::OPEN_BRACKET,   Parser::LOCATION },
-//     { Parser::LOCATION, Token::CLOSED_BRACKET, Parser::SERVER   },
-//     { Parser::SERVER,   Token::CLOSED_BRACKET, Parser::GLOBAL   },
-// };
+
+
+static std::map<std::string, e_methods> makeMethodMap(void) {
+	std::map<std::string, e_methods> m;
+	m["GET"]     = GET;
+	m["HEAD"]    = HEAD;
+	m["POST"]    = POST;
+	m["PUT"]     = PUT;
+	m["DELETE"]  = DELETE;
+	m["PATCH"]   = PATCH;
+	m["OPTIONS"] = OPTIONS;
+	m["CONNECT"] = CONNECT;
+	m["TRACE"]   = TRACE;
+	return m;
+}
+
+static const std::map<std::string, e_methods> MethodMap = makeMethodMap();
 
 Parser::Parser(std::vector<Token> tokens_vector, std::vector<Server> &servers_vector): _state(GLOBAL), _tokens_vector(tokens_vector), _servers_vector(servers_vector) {
 	std::cout << "Parser constructor called" << std::endl;
@@ -26,25 +41,12 @@ Parser::~Parser() {
 }
 
 // ===== UTILS FUNCTONS =====
-void	Parser::setState(parser_state state) {
-	_state = state;
-}
+std::vector<Token> Parser::getTokenVector(void) { return (_tokens_vector); }
 
-std::vector<Token> Parser::getTokenVector(void) {
-	return (_tokens_vector);
-}
+Server&             Parser::getCurrentServer(void) { return (_servers_vector.back()); }
 
-std::vector<Token>	Parser::findNextSemicolon(size_t index) {
-	std::vector<Token> directive_token_vector;
+Location&           Parser::getCurrentLocation(void) { return (_servers_vector.back().getCurrentLocation()); }
 
-	for (size_t i = index; i < _tokens_vector.size(); i++) {
-		directive_token_vector.push_back(_tokens_vector[i]);
-		if (_tokens_vector[i]._type == Token::SEMICOLON) {
-			return (directive_token_vector);
-		}
-	}
-	throw std::runtime_error("Invalid conf file, reaching the end of file without finding end of directive");
-}
 
 void	Parser::lowerScope(void) {
 	std::cout << BOLD_WHITE << "LOWERING SCOPE" << endofline;
@@ -53,7 +55,7 @@ void	Parser::lowerScope(void) {
 	else if (_state == LOCATION)
 		_state = SERVER;
 	else
-		throw std::runtime_error ("Conf file went out of scope"); // TODO : Modify error message for more accurate
+		throw std::runtime_error (ERRS_PARSER_SCOPE_UNDERFLOW);
 }
 
 void	Parser::upperScope(void) {
@@ -63,39 +65,20 @@ void	Parser::upperScope(void) {
 	else if (_state == GLOBAL)
 		_state = SERVER;
 	else
-		throw std::runtime_error ("Conf file went out of scope"); // TODO : Modify error message for more accurate
+		throw std::runtime_error (ERRS_PARSER_SCOPE_OVERFLOW);
 }
-void	Parser::findDirectiveTokenVector(size_t& index) {
-	std::vector<Token> directive_token_vector = findNextSemicolon(index);
 
-	std::cout << BOLD_RED << "[ DIRECTIVE = " << _tokens_vector[index]._value << " AT LINE " << _tokens_vector[index]._line << "]" << endofline;
-	for (size_t i = 0; i < directive_token_vector.size(); i++) {
-		directive_token_vector[i].printToken();
-	}
-	// land on the ';' (last consumed token); the caller's for-loop i++ moves past it
-	index += directive_token_vector.size() - 1;
-}
-// Validates the directive against the current scope, then consumes it.
-// The scope dictates which directive table is legal here, which also
-// resolves directives that are valid in more than one scope (e.g.
-// client_max_body_size, allowed in both server and location).
-void	Parser::parseDirective(size_t& index) {
-	const std::string& key = _tokens_vector[index]._value;
+// ===== METHODS =====
+// PARSES DIRECTIVE SERVER / LOCATION
+std::vector<Token>	Parser::findNextSemicolon(size_t index) {
 
-	switch (_state) {
-		case GLOBAL:
-			throw std::runtime_error("Directive '" + key + "' found outside any block");
-		case SERVER:
-			if (!isValidKey(key, SERVER_DIRECTIVES, SERVER_DIRECTIVES_SIZE))
-				throw std::runtime_error("Directive '" + key + "' is not valid in server scope");
-			break;
-		case LOCATION:
-			if (!isValidKey(key, LOCATION_DIRECTIVES, LOCATION_DIRECTIVES_SIZE))
-				throw std::runtime_error("Directive '" + key + "' is not valid in location scope");
-			break;
+	for (size_t i = index; i < _tokens_vector.size(); i++) {
+		_temp_vector.push_back(_tokens_vector[i]);
+		if (_tokens_vector[i]._type == Token::SEMICOLON) {
+			return (_temp_vector);
+		}
 	}
-	findDirectiveTokenVector(index);
-	// Fill appropriate field if valid
+	throw std::runtime_error(ERRS_PARSER_UNTERMINATED_DIRECTIVE);
 }
 
 void	Parser::parseStateDirective(size_t& index) {
@@ -103,22 +86,166 @@ void	Parser::parseStateDirective(size_t& index) {
 
 	if (_tokens_vector[index]._value == "server" && _tokens_vector[index + 1]._type == Token::OPEN_BRACKET) {
 		if (_state != GLOBAL)
-				throw std::runtime_error("Directive '" + key + "' is not valid in location scope");
+				throw std::runtime_error(ERRS_PARSER_DIRECTIVE_PREFIX + key + ERRS_PARSER_DIRECTIVE_IN_LOCATION);
+
 		Server new_server;
 		_servers_vector.push_back(new_server);
 		upperScope();
 		index++;
 	}
+
 	else if (_tokens_vector[index]._value == "location" && _tokens_vector[index + 2]._type == Token::OPEN_BRACKET) {
 		if (_state != SERVER)
-				throw std::runtime_error("Directive '" + key + "' is not valid in location scope");
-		Location new_location(_tokens_vector[index + 1]._value);
+				throw std::runtime_error(ERRS_PARSER_DIRECTIVE_PREFIX + key + ERRS_PARSER_DIRECTIVE_IN_LOCATION);
+		// else if () // TODO : Check if folder doesn´t exist already
+
+		std::vector<Location>& locations_vector = getCurrentServer().getServerLocationsVector();
+		for (size_t i = 0; i < locations_vector.size(); i++) {
+			if (locations_vector[i].getName() == _tokens_vector[index + 1]._value)
+				throw std::runtime_error ("A location already exists with name " + _tokens_vector[index + 1]._value);
+		}
+		Location new_location(_tokens_vector[index + 1]._value, getCurrentServer().getMaxBodySize());
 		_servers_vector.back().addLocation(new_location);
 		upperScope();
 		index += 2;
 	}
 	else
-		throw std::runtime_error ("Invalid syntax for key " + key );
+		throw std::runtime_error (ERRS_PARSER_INVALID_SYNTAX + key);
+}
+
+
+// ===== DIRECTIVES FUNCTIONS =====
+// directive + value + ';' == 3 tokens
+void	Parser::expectSingleValue(void) {
+	if (_temp_vector.size() != 3)
+		throw std::runtime_error (ERRS_PARSER_INVALID_SYNTAX + _temp_vector[0]._value);
+}
+
+void	Parser::setupMethods(void) {
+
+	for (size_t i = 1; i + 1 < _temp_vector.size(); i++) {
+			std::map<std::string, e_methods>::const_iterator it =
+					MethodMap.find(_temp_vector[i]._value);
+			if (it == MethodMap.end())
+					throw std::runtime_error(ERRS_PARSER_INVALID_METHOD_PREFIX
+							+ _temp_vector[i]._value + ERRS_PARSER_INVALID_METHOD_SUFFIX);
+			getCurrentLocation().getMethodFlag() |= it->second;   // duplicate method = harmless no-op
+	}
+}
+
+void				Parser::setupMaxBodySize(void) {
+	expectSingleValue();
+
+	const std::string& value = _temp_vector[1]._value;
+
+	errno = 0;
+	char* end = NULL;
+	long  number = std::strtol(value.c_str(), &end, 10);
+
+	if (end == value.c_str())                     
+		throw std::runtime_error(ERRS_PARSER_INVALID_SYNTAX + value);
+	if (errno == ERANGE || number < 0)
+		throw std::runtime_error(ERRS_PARSER_INVALID_SYNTAX + value);
+
+	long multiplier = 1;
+	if (end[0] != '\0' && end[1] == '\0') {
+		switch (std::toupper(static_cast<unsigned char>(end[0]))) {
+			case 'K': multiplier = 1024L; break;
+			case 'M': multiplier = 1024L * 1024; break;
+			case 'G': multiplier = 1024L * 1024 * 1024; break;
+			default : throw std::runtime_error(ERRS_PARSER_INVALID_SYNTAX + value);
+		}
+	}
+	else if (end[0] != '\0')                    
+		throw std::runtime_error(ERRS_PARSER_INVALID_SYNTAX + value);
+
+	if (number > LONG_MAX / multiplier)           
+		throw std::runtime_error(ERRS_PARSER_INVALID_SYNTAX + value);
+
+	long result = number * multiplier;
+	if (_state == LOCATION)
+		getCurrentLocation().setMaxBodySize(result);
+	else
+		getCurrentServer().setMaxBodySize(result);
+}
+
+void	Parser::setupListen(void) {
+	expectSingleValue();
+
+	// CHECK FORMAT : 2 DISPO Soit X.X.X.X:PORT || PORT
+
+	Socket new_socket;
+	// new_socket.setSocket(PORT);
+	getCurrentServer().getSockets().push_back(new_socket);
+
+}
+
+void				Parser::setupAutoIndex(void) {
+	expectSingleValue();
+
+	if (_temp_vector[1]._value == "off")
+		getCurrentLocation().setAutoIndex(false);
+	else if (_temp_vector[1]._value == "on")
+		getCurrentLocation().setAutoIndex(true);
+	else
+		throw std::runtime_error (ERRS_PARSER_INVALID_AUTOINDEX);
+}
+
+void				Parser::setupServerName(void) {
+	expectSingleValue();
+
+	if (getCurrentServer().getServerName() != "")
+		throw std::runtime_error (ERRS_PARSER_SERVER_NAME_ALREADY_SET_PREFIX
+				+ getCurrentServer().getServerName() + ERRS_PARSER_SERVER_NAME_SUFFIX);
+
+	for (size_t i = 0; i < _servers_vector.size(); i++) {
+		if (_servers_vector[i].getServerName() == _temp_vector[1]._value)
+			throw std::runtime_error (ERRS_PARSER_DUPLICATE_SERVER_NAME_PREFIX
+					+ _temp_vector[1]._value + ERRS_PARSER_SERVER_NAME_SUFFIX);
+	}
+
+	getCurrentServer().setServerName(_temp_vector[1]._value);
+}
+
+// RETURNS THE VECTOR OF TOKENS FOR THE DIRECTIVE TO TREAT
+void	Parser::findDirectiveTokenVector(size_t& index) {
+	findNextSemicolon(index);
+
+	std::cout << BOLD_RED << "[ DIRECTIVE = " << _tokens_vector[index]._value << " AT LINE " << _tokens_vector[index]._line << "]" << endofline;
+	for (size_t i = 0; i < _temp_vector.size(); i++) {
+		_temp_vector[i].printToken();
+	}
+	index += _temp_vector.size() - 1;
+}
+
+
+void	Parser::parseDirective(size_t& index) {
+	const std::string& key = _tokens_vector[index]._value;
+
+	switch (_state) {
+		case GLOBAL:
+			throw std::runtime_error(ERRS_PARSER_DIRECTIVE_PREFIX + key + ERRS_PARSER_DIRECTIVE_OUTSIDE_BLOCK);
+		case SERVER:
+			if (!isValidKey(key, SERVER_DIRECTIVES, SERVER_DIRECTIVES_SIZE))
+				throw std::runtime_error(ERRS_PARSER_DIRECTIVE_PREFIX + key + ERRS_PARSER_DIRECTIVE_IN_SERVER);
+			break;
+		case LOCATION:
+			if (!isValidKey(key, LOCATION_DIRECTIVES, LOCATION_DIRECTIVES_SIZE))
+				throw std::runtime_error(ERRS_PARSER_DIRECTIVE_PREFIX + key + ERRS_PARSER_DIRECTIVE_IN_LOCATION);
+			break;
+	}
+	findDirectiveTokenVector(index);
+	if (_temp_vector[0]._value == "methods")
+		setupMethods();
+	else if (_temp_vector[0]._value == "autoindex")
+		setupAutoIndex();
+	else if (_temp_vector[0]._value == "server_name")
+		setupServerName();
+	else if (_temp_vector[0]._value == "client_max_body_size")
+		setupMaxBodySize();
+	else if (_temp_vector[0]._value == "listen")
+		setupListen();
+	// Fill appropriate field if valid
 }
 
 // MAIN PARSING FUNCTION -> CREATING THE CLASSES
@@ -131,47 +258,15 @@ void	Parser::initServers(void) {
 		else if (isValidKey(_tokens_vector[i]._value, SERVER_DIRECTIVES, SERVER_DIRECTIVES_SIZE) || isValidKey(_tokens_vector[i]._value, LOCATION_DIRECTIVES, LOCATION_DIRECTIVES_SIZE))
 			parseDirective(i);
 		else
-			throw std::runtime_error ("Invalide directive " + _tokens_vector[i]._value + " found in file");
+			throw std::runtime_error (ERRS_PARSER_INVALID_DIRECTIVE_PREFIX + _tokens_vector[i]._value + ERRS_PARSER_INVALID_DIRECTIVE_SUFFIX);
+		_temp_vector.clear();
 	}
 	if (_state != GLOBAL)
-		throw std::runtime_error ("Incomplete conf file");
+		throw std::runtime_error (ERRS_PARSER_INCOMPLETE_FILE);
+	else if (_servers_vector.size() < 1) {
+		throw std::runtime_error (ERRS_PARSER_NO_SERVER);
+	}
 }
-
-// ===== METHODS =====
-// void	Parser::affectState(Token &token, size_t &index) {
-// 	switch(_state) {
-// 		case GLOBAL : {
-//             break;
-// 		}
-// 		case SERVER : {
-//             break;
-// 		}
-// 		case LOCATION : {
-// 			break;
-// 		}
-// 	}
-// }
-
-// void	Parser::interpretState(Token &token, size_t &index, Server& server) {
-// 	switch (_state) {
-// 		case GLOBAL : {
-// 			break;
-// 		}
-// 		case SERVER : {
-// 			break;
-// 		}
-// 		case LOCATION : {
-// 			break;
-// 		}
-// 	}
-// }
-
-// void	Parser::parsingTokensVector(void) {
-// 	for (size_t i = 0; i < _tokens_vector.size(); i++) {
-// 		affectState(_tokens_vector[i], i);
-// 		interpretState(_tokens_vector[i], i, _server);
-// 	}
-// }
 
 // ===== TEST/OUTPUT =====
 void	Parser::printState(void) {

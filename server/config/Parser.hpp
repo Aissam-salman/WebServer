@@ -13,6 +13,7 @@ public:
 private:
 	parser_state			_state;
 	std::vector<Token>		_tokens_vector;
+	std::vector<Token>		_temp_vector;
 	std::vector<Server>&	_servers_vector;
 
 	// UNINITIALIZED ~Tors
@@ -21,29 +22,40 @@ private:
 
 
 public:
-	Parser(std::vector<Token> tokens_vector, std::vector<Server> &servers_vector);
-	~Parser();
-
-	void 				setState(parser_state state);
+	Parser	(std::vector<Token> tokens_vector, std::vector<Server> &servers_vector);
+	~Parser	();
 
 	std::vector<Token>	getTokenVector(void);
 	std::vector<Token>	findNextSemicolon(size_t index);
 
-	void				lowerScope(void);
-	void				upperScope(void);
 
+	// GLOBAL METHODS
 	void				parseDirective(size_t& index);
 	void				parseStateDirective(size_t& index);
+
+	// DIRECTIVE SETUP
+	void				setupListen(void);
+	void				setupServerName(void);
+	void				setupMaxBodySize(void);
+	// void				setupErrorPages(void);
+	// void				setupRoot(void);
+	// void				setupIndex(void);
+	void				setupAutoIndex(void);
+	void				setupMethods(void);
+	// void				setupUploadDir(void);
+	// void				setupCGI(void);
+	// void				setupReturn(void);
 	void				findDirectiveTokenVector(size_t& index);
 
-	void	initServers(void) ;
-	void printState(void);
-};
-
-struct Transition {
-    Parser::parser_state  current_state;
-    Token::token_type     token_type;
-    Parser::parser_state  next_state;
+	// UTILS METHODS
+	void				expectSingleValue(void);
+	void				setupAddMethod(std::string method);
+	void				lowerScope(void);
+	void				upperScope(void);
+	void				initServers(void) ;
+	void 				printState(void);
+	Server&				getCurrentServer(void);
+	Location&			getCurrentLocation(void);
 };
 
 #endif

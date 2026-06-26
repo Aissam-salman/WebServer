@@ -7,6 +7,7 @@
 #include <stdexcept>
 
 #include "utils.hpp"
+#include "errors.hpp"
 #include "Token.hpp"
 #include "Lexer.hpp"
 #include "configutils.hpp"
@@ -14,9 +15,9 @@
 Lexer::Lexer(std::string conf_file_path): _raw_file_path(conf_file_path), _raw_conf_file(conf_file_path.c_str()) {
     std::cout << "Lexer name constructor called" << endofline;
     if (_raw_file_path.size() < 5 || _raw_file_path.substr(_raw_file_path.size() - 5) != ".conf")
-        throw std::runtime_error ("Invalid file name : must end with .conf");
-    if (_raw_conf_file.is_open() == false) 
-        throw std::runtime_error ("Error opening the file : " + _raw_file_path);
+        throw std::runtime_error (ERRS_LEXER_BAD_EXTENSION);
+    if (_raw_conf_file.is_open() == false)
+        throw std::runtime_error (ERRS_LEXER_FILE_OPEN + _raw_file_path);
 }
 
 Lexer::~Lexer() { }

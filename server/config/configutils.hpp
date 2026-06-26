@@ -7,6 +7,9 @@
 
 #include "Token.hpp"
 
+# ifndef DEBUG
+# define DEBUG 0
+# endif
 
 extern const std::string STATE_DIRECTIVES[];
 extern const size_t      STATE_DIRECTIVES_SIZE;

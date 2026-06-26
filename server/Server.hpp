@@ -12,7 +12,7 @@
 class Server {
 private:
   std::string _name;
-  std::vector<Socket> _sockets;
+  std::vector<Socket> _sockets_vector;
   std::vector<Location> _locations_vector;
   MapIntStr _error_pages; // LINKS ERROR CODES TO ACCORDING PAGES
   long _max_body_size;    // TODO : Ajouter le cap body_size
@@ -22,23 +22,31 @@ private:
   Server &operator=(const Server &other);
 
 public:
-  ~Server();
-  Server(const Server &src);
-  Server(void);
-  Server(std::string name);
+	~Server();
+	Server(const Server &src);
+	Server(void);
+	Server(std::string name);
 
-  std::vector<Location> &getServerLocationsVector(void);
-  void printServer(void);
+	std::vector<Location> 		&getServerLocationsVector(void);
+  	void printServer(void);
 
-  std::vector<Location> &getLocations(void);
-  std::vector<Socket> &getSockets(void);
-  MapIntStr &getErrorPages(void);
+	long						getMaxBodySize(void) const;
+	void						setMaxBodySize(long size);
+	void						setServerName(std::string name);
+	std::string					getServerName(void);
+	std::vector<Location>		&getLocations(void);
+	Location 					&getCurrentLocation(void);
+	std::vector<Socket>			&getSockets(void);
+	MapIntStr&					getErrorPages(void);
+	std::map<int, Client>		&getClients(void);
 
-  void  addLocation(Location& new_location);
+	void 						addLocation(Location &new_location);
+	void 						addSocket(Socket &new_socket);
+	void 						addErrorPage(int code, std::string path);
 
-  static bool _running;
-  void run(void);
-  static void handle_sigint(int);
+	static bool					_running;
+	void						run(void);
+	static void					handle_sigint(int);
 };
 
 #endif
