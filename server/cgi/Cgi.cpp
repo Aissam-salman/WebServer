@@ -6,13 +6,12 @@
 /*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/18 18:29:37 by alamjada          #+#    #+#             */
-/*   Updated: 2026/06/23 17:58:57 by alamjada         ###   ########.fr       */
+/*   Updated: 2026/06/27 03:09:04 by alamjada         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Cgi.hpp"
 #include "Request.hpp"
-#include <algorithm>
 #include <cerrno>
 #include <cstddef>
 #include <cstdlib>
@@ -75,10 +74,9 @@ std::string Cgi::run(void) {
     dup2(pipe_resp[1], STDOUT_FILENO);
     close(pipe_body[1]);
     close(pipe_resp[0]);
-    std::string path = _request.getDocumentRoot() +
-                       _request.getResource().substr(
-                           0, _request.getResource().find(".py") + 3);
+    std::string path = _request.getCgi_env().at("SCRIPT_FILENAME");
     execve(path.c_str(), arg.data(), envp.data());
+    std::cerr << "Error: execve:" << strerror(errno) << std::endl;
     _exit(1);
   } else {
     close(pipe_body[0]);

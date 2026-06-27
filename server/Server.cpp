@@ -64,6 +64,7 @@ void Server::run(void) {
   _sockets.push_back(socket1);
   std::vector<std::string> ls;
   ls.push_back("python");
+  ls.push_back("rust");
 
   signal(SIGINT, handle_sigint);
   std::vector<pollfd> poll_fds;

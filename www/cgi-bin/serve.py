@@ -317,7 +317,6 @@ def debug():
     print("Hello from CGI python")
     print(f"REQUEST_METHOD={os.environ.get('REQUEST_METHOD')}")
     print(f"CONTENT_LENGTH={os.environ.get('CONTENT_LENGTH')}")
-    print(f"REQUEST_METHOD={os.environ.get('REQUEST_METHOD')}")
     print(f"SERVER_PROTOCOL={os.environ.get('SERVER_PROTOCOL')}")
     print(f"SERVER_NAME={os.environ.get('SERVER_NAME')}")
     print(f"SERVER_PORT={os.environ.get('SERVER_PORT')}")
