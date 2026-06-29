@@ -1,5 +1,6 @@
 #include "Server.hpp"
 #include "cgi/Cgi.hpp"
+#include "config/configutils.hpp"
 #include "utils.hpp"
 #include <csignal>
 #include <iostream>
@@ -11,25 +12,18 @@
 bool Server::_running = true;
 
 // ==== ~TORS ====
-Server::Server(void) : _name(""), _max_body_size(0) {
-  std::cout << BOLD_CYAN << "Server Default constructor called" << RESET
-            << std::endl;
+Server::Server(void) : _name(""), _error_pages(initErrorPages()), _max_body_size(0) {
 }
 
-Server::Server(std::string name) : _name(name), _max_body_size(-1) {
-  std::cout << BOLD_CYAN << "Server Name constructor called" << RESET
-            << std::endl;
+Server::Server(std::string name) : _name(name), _error_pages(initErrorPages()), _max_body_size(-1) {
 }
 Server::Server(const Server &src)
     : _name(src._name), _sockets_vector(src._sockets_vector), _locations_vector(src._locations_vector),
       _error_pages(src._error_pages), _max_body_size(src._max_body_size),
       _clients(src._clients) {
-  std::cout << BOLD_CYAN << "Server Copy constructor called" << RESET
-            << std::endl;
 }
 
 Server::~Server() {
-  std::cout << BOLD_RED << "Server Destructor called" << RESET << std::endl;
 }
 
 // ==== GETTERS ====
@@ -63,9 +57,17 @@ void  Server::addErrorPage(int code, std::string path) {
 
 
 // ==== OUTPUTS ====
+void  Server::printErrorPages(void) {
+  std::cout << BOLD_CYAN << "ERROR PAGES" << endofline;
+  for (MapIntStr::const_iterator it = _error_pages.begin(); it != _error_pages.end(); ++it) {
+    std::cout << "[" << it->first << "] -> " << it->second << endofline;
+  }
+}
+
 void Server::printServer(void) {
   display("\n[ ==== GLOBAL INFOS ==== ]");
   display("SERVER NAME = " + _name);
+  printErrorPages();
   std::cout << "NBR OF SOCKETS = " << _sockets_vector.size() << std::endl;
   for (size_t i = 0; i < _sockets_vector.size(); i++) {
     std::cout << BOLD_CYAN << "LOCATION NUMBER " << i << endofline;
@@ -78,7 +80,6 @@ void Server::printServer(void) {
     _locations_vector[i].printLocation();
     std::cout << endofline;
   }
-
   std::cout << BOLD_MAGENTA << "[===========-------===========]" << endofline;
 }
 

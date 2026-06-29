@@ -25,5 +25,11 @@ Token&	getTokenAtIndex(std::vector<Token> &tokens_vector, size_t index) {
 // INITIALISE LES ERROR PAGES PAR DEFAUT
 MapIntStr initErrorPages(void) {
 	MapIntStr error_pages;
+
+	error_pages[404] = "/errors/404.html";
+	error_pages[500] = "/errors/5xx.html";
+	error_pages[502] = "/errors/5xx.html";
+	error_pages[503] = "/errors/5xx.html";
+	error_pages[504] = "/errors/5xx.html";
 	return (error_pages);
 }

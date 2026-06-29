@@ -37,14 +37,14 @@ public:
 	void				setupListen(void);
 	void				setupServerName(void);
 	void				setupMaxBodySize(void);
-	// void				setupErrorPages(void);
-	// void				setupRoot(void);
-	// void				setupIndex(void);
+	void				setupErrorPages(void);
+	void				setupRoot(void); // ATTENTION, PAS DE CHECK EXISTING
+	void				setupIndex(void); // ATTENTION, PAS DE CHECK EXISTING
 	void				setupAutoIndex(void);
 	void				setupMethods(void);
 	// void				setupUploadDir(void);
-	// void				setupCGI(void);
-	// void				setupReturn(void);
+	void				setupCGI(void);
+	void				setupReturn(void);
 	void				findDirectiveTokenVector(size_t& index);
 
 	// UTILS METHODS

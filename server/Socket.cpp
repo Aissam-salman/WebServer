@@ -8,28 +8,28 @@
 #include "Socket.hpp"
 #include "utils.hpp"
 
-Socket::Socket(void) { std::cout << "Default constructor called" << std::endl; }
+Socket::Socket(void): _host("0.0.0.0"), _port(0) { std::memset(&_addr, 0, sizeof(sockaddr_in)); }
 
-Socket::Socket(std::string name): _name(name) {
-    std::cout << "Name constructor called" << std::endl;
+Socket::Socket(std::string name): _name(name), _host("0.0.0.0"), _port(0) {
+    std::memset(&_addr, 0, sizeof(sockaddr_in));
 }
 
 Socket::Socket(const Socket &src) {
-  std::cout << "Copy constructor called" << std::endl;
   *this = src;
 }
 
 Socket &Socket::operator=(const Socket &other) {
-  std::cout << "Copy assignment operator called" << std::endl;
   if (this != &other) {
     _name = other._name;
+    _host = other._host;
+    _port = other._port;
     _listen_fd = other._listen_fd;
     _addr = other._addr;
   }
   return (*this);
 }
 
-Socket::~Socket() { std::cout << "Destructor called" << std::endl; }
+Socket::~Socket() {}
 
 void Socket::setSocket(int port) {
   int ret = 0;
@@ -71,12 +71,19 @@ void Socket::setSocket(int port) {
 	
 }
 
+void            Socket::setHost(std::string host) { _host = host; }
+void            Socket::setPort(int port) { _port = port; }
+std::string     Socket::getHost(void) const { return (_host); }
+int             Socket::getPort(void) const { return (_port); }
+
 int     Socket::getSocketFd(void) {
     return (_listen_fd);
 }
 
 void    Socket::printSocket(void) {
     std::cout << BOLD_GREEN << "{==== SOCKET " << _name << " ====} " << endofline;
+    std::cout << "Config host: " << _host << std::endl;                // parsed from listen
+    std::cout << "Config port: " << _port << std::endl;                // parsed from listen
     std::cout << "Family: " << _addr.sin_family << std::endl;          // 2 = AF_INET
     std::cout << "Port:   " << ntohs(_addr.sin_port) << std::endl;     // ntohs! → 8080
     std::cout << "IP:     " << inet_ntoa(_addr.sin_addr) << std::endl; // "0.0.0.0"

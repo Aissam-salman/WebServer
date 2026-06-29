@@ -25,6 +25,11 @@
 
 # define ERRS_PARSER_INVALID_AUTOINDEX   "autoindex only accepts 'on' or 'off'"
 
+# define ERRS_PARSER_INVALID_ERROR_CODE   "Invalid error code in error_page directive: " // + code
+
+# define ERRS_PARSER_INVALID_HOST   "Invalid host in listen directive: " // + host
+# define ERRS_PARSER_INVALID_PORT   "Invalid port in listen directive: " // + port
+
 # define ERRS_PARSER_DUPLICATE_SERVER_NAME_PREFIX   "A server already exists with name '" // + name
 # define ERRS_PARSER_SERVER_NAME_ALREADY_SET_PREFIX "Server name is already set to '"     // + name
 # define ERRS_PARSER_SERVER_NAME_SUFFIX             "'"

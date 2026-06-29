@@ -6,6 +6,7 @@
 #include <cstddef>
 
 #include "Token.hpp"
+#include "utils.hpp"
 
 # ifndef DEBUG
 # define DEBUG 0
@@ -24,7 +25,7 @@ extern const std::string SEPARATORS[];
 extern const size_t      SEPARATORS_SIZE;
 
 
-// std::map<int, std::string> initErrorPages(void); // TODO : RAJOUTER NUMERO ERREUR AVEC PAGE
+MapIntStr	initErrorPages(void);
 Token&	getTokenAtIndex(std::vector<Token> &tokens_vector, size_t index) ;
 
 #endif

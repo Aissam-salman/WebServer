@@ -8,6 +8,8 @@
 class Socket {
     private:
         std::string     _name;
+        std::string     _host;
+        int             _port;
         int             _listen_fd;
         sockaddr_in     _addr;
 
@@ -19,6 +21,12 @@ class Socket {
         ~Socket();
 
         void setSocket(int port);
+
+        void            setHost(std::string host);
+        void            setPort(int port);
+        std::string     getHost(void) const;
+        int             getPort(void) const;
+
         int     getSocketFd(void);
 
         void    printSocket(void);

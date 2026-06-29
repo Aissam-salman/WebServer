@@ -13,7 +13,6 @@
 #include "configutils.hpp"
 
 Lexer::Lexer(std::string conf_file_path): _raw_file_path(conf_file_path), _raw_conf_file(conf_file_path.c_str()) {
-    std::cout << "Lexer name constructor called" << endofline;
     if (_raw_file_path.size() < 5 || _raw_file_path.substr(_raw_file_path.size() - 5) != ".conf")
         throw std::runtime_error (ERRS_LEXER_BAD_EXTENSION);
     if (_raw_conf_file.is_open() == false)

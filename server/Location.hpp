@@ -14,6 +14,7 @@ class Location {
 		bool						_autoindex;
 		int							_methods_flag; // SETS BITS CORRESPONDING TO ALLOWED METHODS
 		bool						_return;
+		int							_return_error_code;
 		std::string					_return_path;
 
 	public:
@@ -32,6 +33,7 @@ class Location {
 		void	setMethods(e_methods method);
 		void	setReturn(bool state);
 		void	setReturnPath(std::string path);
+		void	setReturnErrorCode(int code);
 
 		// GETTERS
 		std::string&	getName(void);
@@ -42,6 +44,7 @@ class Location {
 		int&			getMethodFlag(void);
 		bool			getReturn(void) const;
 		std::string&	getReturnPath(void);
+		int				getReturnErrorCode(void) const;
 
 		void	printLocation(void) const;
 };

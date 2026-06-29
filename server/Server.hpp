@@ -29,6 +29,7 @@ public:
 
 	std::vector<Location> 		&getServerLocationsVector(void);
   	void printServer(void);
+  	void printErrorPages(void);
 
 	long						getMaxBodySize(void) const;
 	void						setMaxBodySize(long size);

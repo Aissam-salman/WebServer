@@ -49,7 +49,7 @@ Location&           Parser::getCurrentLocation(void) { return (_servers_vector.b
 
 
 void	Parser::lowerScope(void) {
-	std::cout << BOLD_WHITE << "LOWERING SCOPE" << endofline;
+	// std::cout << BOLD_WHITE << "LOWERING SCOPE" << endofline;
 	if (_state == SERVER)
 		_state = GLOBAL;
 	else if (_state == LOCATION)
@@ -59,7 +59,7 @@ void	Parser::lowerScope(void) {
 }
 
 void	Parser::upperScope(void) {
-	std::cout << BOLD_WHITE << "UPPING SCOPE" << endofline;
+	// std::cout << BOLD_WHITE << "UPPING SCOPE" << endofline;
 	if (_state == SERVER)
 		_state = LOCATION;
 	else if (_state == GLOBAL)
@@ -97,7 +97,7 @@ void	Parser::parseStateDirective(size_t& index) {
 	else if (_tokens_vector[index]._value == "location" && _tokens_vector[index + 2]._type == Token::OPEN_BRACKET) {
 		if (_state != SERVER)
 				throw std::runtime_error(ERRS_PARSER_DIRECTIVE_PREFIX + key + ERRS_PARSER_DIRECTIVE_IN_LOCATION);
-		// else if () // TODO : Check if folder doesn´t exist already
+		// TODO : Check if folder doesn´t exist already
 
 		std::vector<Location>& locations_vector = getCurrentServer().getServerLocationsVector();
 		for (size_t i = 0; i < locations_vector.size(); i++) {
@@ -119,6 +119,20 @@ void	Parser::parseStateDirective(size_t& index) {
 void	Parser::expectSingleValue(void) {
 	if (_temp_vector.size() != 3)
 		throw std::runtime_error (ERRS_PARSER_INVALID_SYNTAX + _temp_vector[0]._value);
+}
+
+void				Parser::setupRoot(void) {
+	expectSingleValue();
+
+	// std::cout << BOLD_GREEN << "ROOT = " << _temp_vector[1]._value << endofline;
+	getCurrentLocation().setRootPath(_temp_vector[1]._value);
+}
+
+void				Parser::setupIndex(void) {
+	expectSingleValue();
+
+	// std::cout << BOLD_GREEN << "INDEX = " << _temp_vector[1]._value << endofline;
+	getCurrentLocation().setIndexPath(_temp_vector[1]._value);
 }
 
 void	Parser::setupMethods(void) {
@@ -169,15 +183,72 @@ void				Parser::setupMaxBodySize(void) {
 		getCurrentServer().setMaxBodySize(result);
 }
 
+static bool	isValidIP(const std::string& host) {
+	int		octets = 0;
+	size_t	i = 0;
+
+	while (i < host.size()) {
+		size_t	start = i;
+		int		value = 0;
+
+		while (i < host.size() && std::isdigit(static_cast<unsigned char>(host[i]))) {
+			value = value * 10 + (host[i] - '0');
+			if (value > 255)
+				return (false);
+			i++;
+		}
+		if (i == start || i - start > 3)
+			return (false);
+		octets++;
+		if (i < host.size()) {
+			if (host[i] != '.' || i + 1 == host.size())
+				return (false);
+			i++;
+		}
+	}
+	return (octets == 4);
+}
+
+static int	parsePort(const std::string& port_str) {
+	if (port_str.empty())
+		throw std::runtime_error(ERRS_PARSER_INVALID_PORT + port_str);
+	for (size_t i = 0; i < port_str.size(); i++) {
+		if (!std::isdigit(static_cast<unsigned char>(port_str[i])))
+			throw std::runtime_error(ERRS_PARSER_INVALID_PORT + port_str);
+	}
+
+	errno = 0;
+	char*	end = NULL;
+	long	port = std::strtol(port_str.c_str(), &end, 10);
+
+	if (errno == ERANGE || *end != '\0' || port < 1 || port > 65535)
+		throw std::runtime_error(ERRS_PARSER_INVALID_PORT + port_str);
+	return (static_cast<int>(port));
+}
+
+
 void	Parser::setupListen(void) {
 	expectSingleValue();
+	const std::string&	value = _temp_vector[1]._value;
 
-	// CHECK FORMAT : 2 DISPO Soit X.X.X.X:PORT || PORT
+	// Two accepted formats: "X.X.X.X:PORT" or "PORT" (host defaults to 0.0.0.0)
+	std::string	host = "0.0.0.0";
+	std::string	port_str = value;
+	size_t	colon = value.rfind(':');
 
-	Socket new_socket;
-	// new_socket.setSocket(PORT);
+	if (colon != std::string::npos) {
+		host = value.substr(0, colon);
+		port_str = value.substr(colon + 1);
+		if (!isValidIP(host))
+			throw std::runtime_error(ERRS_PARSER_INVALID_HOST + host);
+	}
+
+	int	port = parsePort(port_str);
+
+	Socket	new_socket;
+	new_socket.setHost(host);
+	new_socket.setPort(port);
 	getCurrentServer().getSockets().push_back(new_socket);
-
 }
 
 void				Parser::setupAutoIndex(void) {
@@ -207,14 +278,54 @@ void				Parser::setupServerName(void) {
 	getCurrentServer().setServerName(_temp_vector[1]._value);
 }
 
+
+void				Parser::setupReturn(void) {
+	if (_temp_vector.size() != 4)
+		throw std::runtime_error (ERRS_PARSER_INVALID_SYNTAX + _temp_vector[0]._value);
+
+	int error_code = std::atoi( _temp_vector[1]._value.c_str());
+	getCurrentLocation().setReturnErrorCode(error_code);
+	getCurrentLocation().setReturnPath( _temp_vector[2]._value );
+}
+
+static int	parseErrorCode(const std::string& code_str) {
+	if (code_str.empty())
+		throw std::runtime_error(ERRS_PARSER_INVALID_ERROR_CODE + code_str);
+	for (size_t i = 0; i < code_str.size(); i++) {
+		if (!std::isdigit(static_cast<unsigned char>(code_str[i])))
+			throw std::runtime_error(ERRS_PARSER_INVALID_ERROR_CODE + code_str);
+	}
+
+	errno = 0;
+	char*	end = NULL;
+	long	code = std::strtol(code_str.c_str(), &end, 10);
+
+	// nginx accepts response codes in the 300..599 range for error_page
+	if (errno == ERANGE || *end != '\0' || code < 300 || code > 599)
+		throw std::runtime_error(ERRS_PARSER_INVALID_ERROR_CODE + code_str);
+	return (static_cast<int>(code));
+}
+
+// error_page <code> [<code>...] <path>;  -> at least directive + code + path + ';'
+void				Parser::setupErrorPages(void) {
+	if (_temp_vector.size() < 4)
+		throw std::runtime_error(ERRS_PARSER_INVALID_SYNTAX + _temp_vector[0]._value);
+
+	// Last token is the SEMICOLON, the one before it is the page path.
+	const std::string&	path = _temp_vector[_temp_vector.size() - 2]._value;
+
+	// Every token between the directive and the path is an error code.
+	for (size_t i = 1; i + 2 < _temp_vector.size(); i++) {
+		int	code = parseErrorCode(_temp_vector[i]._value);
+		// std::cout << BOLD_GREEN << "ERROR_PAGE " << code << " = " << path << endofline;
+		getCurrentServer().addErrorPage(code, path);
+	}
+}
+
 // RETURNS THE VECTOR OF TOKENS FOR THE DIRECTIVE TO TREAT
 void	Parser::findDirectiveTokenVector(size_t& index) {
 	findNextSemicolon(index);
 
-	std::cout << BOLD_RED << "[ DIRECTIVE = " << _tokens_vector[index]._value << " AT LINE " << _tokens_vector[index]._line << "]" << endofline;
-	for (size_t i = 0; i < _temp_vector.size(); i++) {
-		_temp_vector[i].printToken();
-	}
 	index += _temp_vector.size() - 1;
 }
 
@@ -245,7 +356,14 @@ void	Parser::parseDirective(size_t& index) {
 		setupMaxBodySize();
 	else if (_temp_vector[0]._value == "listen")
 		setupListen();
-	// Fill appropriate field if valid
+	else if (_temp_vector[0]._value == "root")
+		setupRoot();
+	else if (_temp_vector[0]._value == "index")
+		setupIndex();
+	else if (_temp_vector[0]._value == "return")
+		setupReturn();
+	else if (_temp_vector[0]._value == "error_page")
+		setupErrorPages();
 }
 
 // MAIN PARSING FUNCTION -> CREATING THE CLASSES
