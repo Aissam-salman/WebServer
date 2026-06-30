@@ -109,6 +109,8 @@ void Server::run(void) {
             std::string resp;
             if (client._request.isCGI()) {
               Cgi cgi(ls, client._request);
+							//FIX: bloquant !!! 
+							// waitpid here need stock pipe_fd from here, to keep read and write to cgi
               resp = cgi.run();
             } else {
               // resp = buildResp(client._request);
