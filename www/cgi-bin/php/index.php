@@ -2,25 +2,8 @@
 
 <?php
 
-header("Content-Type: application/json");
 
-// CONFIG 
-//
-$storageDir = "../../../www/img/";
-$dbPath = "catalog.db";
-
-$imgExt = [
-	"image/jpeg" => "jpg",
-	"image/png" => "png",
-	"image/webp" => "webp",
-];
-
-if (!is_dir($storageDir)) {
-	mkdir($storageDir, 0755, true);
-}
-
-
-// DB 
+// DB && HELPER
 //
 function connectionDb(string $dbPath): SQLite3
 {
@@ -66,31 +49,6 @@ function mapRawToArray(array $row): array
  *   DELETE /{id}            -> supprime une image (fichier + DB)
  */
 //
-$pathInfo = getenv("PATH_INFO") ?: "/";
-$params = array_values(array_filter(explode("/", $pathInfo)));
-$id = isset($params[0]) && ctype_digit($params[0]) ? (int)$params[0] : null;
-$methodHtpp = $_SERVER["REQUEST_METHOD"] ?? "GET";
-
-$db = connectionDb($dbPath);
-
-switch ($methodHtpp) {
-	case "GET":
-		Get($db, $id);
-		break;
-	case "POST":
-		Post($db, $storageDir, $imgExt);
-		break;
-	case "PUT":
-		Put($db, $storageDir, $imgExt, $id);
-		break;
-	case "DELETE":
-		Delete($db, $storageDir, $id);
-	default:
-		jsonResponseErr(405, "Method not allowed");
-}
-
-$db->close();
-
 function Get(SQLite3 $db, ?int $id): void
 {
 	if ($id !== null) {
@@ -179,23 +137,64 @@ function Put(SQLite3 $db, string $storageDir, array $imgExt, ?int $id): void {}
 
 function Delete(SQLite3 $db, string $storageDir, ?int $id): void {}
 
-
-
-
-
-
-function pr(string $msg = "")
+function main(): void
 {
-	echo $msg . "\n";
+	$storageDir = "../../../www/img/";
+	$dbPath = "catalog.db";
+
+	$imgExt = [
+		"image/jpeg" => "jpg",
+		"image/png" => "png",
+		"image/webp" => "webp",
+	];
+
+	if (!is_dir($storageDir)) {
+		mkdir($storageDir, 0755, true);
+	}
+
+	$pathInfo = getenv("PATH_INFO") ?: "/";
+	$params = array_values(array_filter(explode("/", $pathInfo)));
+	$id = isset($params[0]) && ctype_digit($params[0]) ? (int)$params[0] : null;
+	$methodHtpp = $_SERVER["REQUEST_METHOD"] ?? "GET";
+
+	$db = connectionDb($dbPath);
+
+	switch ($methodHtpp) {
+		case "GET":
+			Get($db, $id);
+			break;
+		case "POST":
+			Post($db, $storageDir, $imgExt);
+			break;
+		case "PUT":
+			Put($db, $storageDir, $imgExt, $id);
+			break;
+		case "DELETE":
+			Delete($db, $storageDir, $id);
+		default:
+			jsonResponseErr(405, "Method not allowed");
+	}
+
+	$db->close();
 }
 
-pr("--------- [DEBUG] ---------");
-pr("path_info: " .  $pathInfo);
-pr("method: " . $methodHtpp);
-pr("script_name: " . $_SERVER["SCRIPT_NAME"]);
-pr("query_string: " . $_SERVER["QUERY_STRING"]);
-pr("content_length: " . $_SERVER["CONTENT_LENGTH"]);
-pr("content_type: " . getenv('CONTENT_TYPE'));
+header("Content-Type: application/json");
 
-$rowBody = file_get_contents("php://input");
-pr("body: " . $rowBody);
+main();
+
+
+/* function pr(string $msg = "") */
+/* { */
+/* 	echo $msg . "\n"; */
+/* } */
+/**/
+/* pr("--------- [DEBUG] ---------"); */
+/* pr("path_info: " .  $pathInfo); */
+/* pr("method: " . $methodHtpp); */
+/* pr("script_name: " . $_SERVER["SCRIPT_NAME"]); */
+/* pr("query_string: " . $_SERVER["QUERY_STRING"]); */
+/* pr("content_length: " . $_SERVER["CONTENT_LENGTH"]); */
+/* pr("content_type: " . getenv('CONTENT_TYPE')); */
+/**/
+/* $rowBody = file_get_contents("php://input"); */
+/* pr("body: " . $rowBody); */
