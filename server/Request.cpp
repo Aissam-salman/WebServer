@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <sstream>
 #include <stdexcept>
+#include <iostream>
 
 Request::Request(const std::string &server_port, const std::string &client_ip,
                  const std::string &client_port, const std::string &document_root)
@@ -128,12 +129,12 @@ void Request::parseCgi_env() {
       cgi_env["SCRIPT_NAME"] = path;
       cgi_env["PATH_INFO"] = "";
     }
-    //INFO: integrate rust cgi
-  } else if ((extension_pos = path.find("/rust/target/release/main")) != std::string::npos) {
-    size_t end = path.find("main", extension_pos);
+    //INFO: integrate php cgi
+  } else if ((extension_pos = path.find(".php")) != std::string::npos) {
+    size_t end = path.find("/", extension_pos);
     if (end != std::string::npos) {
-      cgi_env["SCRIPT_NAME"] = path.substr(0, end + 4);
-      cgi_env["PATH_INFO"] = path.substr(end + 4);
+      cgi_env["SCRIPT_NAME"] = path.substr(0, end);
+      cgi_env["PATH_INFO"] = path.substr(end);
     } else {
       cgi_env["SCRIPT_NAME"] = path;
       cgi_env["PATH_INFO"] = "";

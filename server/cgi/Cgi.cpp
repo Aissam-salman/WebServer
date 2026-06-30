@@ -42,6 +42,7 @@ std::string Cgi::run(void) {
   for (; it != ite; it++) {
     env_strings.push_back(std::string(it->first) + "=" + std::string(it->second));
   }
+	env_strings.push_back("REDIRECT_STATUS=200");
 
   for (size_t i = 0; i < env_strings.size(); i++) {
       envp.push_back(const_cast<char *>(env_strings[i].c_str()));
