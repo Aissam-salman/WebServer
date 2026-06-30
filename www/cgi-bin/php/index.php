@@ -1,5 +1,19 @@
 #!/usr/bin/php-cgi
 <?php
+ini_set("display_errors", "0");
+ini_set("log_errors", "1");
+ini_set("error_log", __DIR__ . "../php/php_errors.log");
+
+set_error_handler(function ($errno, $errstr, $errfile, $errline) {
+	error_log("[$errno] $errstr in $errfile:$errline");
+});
+
+set_exception_handler(function ($e) {
+	error_log("Uncaught exception: " . $e->getMessage());
+	http_response_code(500);
+	echo json_encode(["error" => "Internal server error"]);
+});
+
 header_remove('X-Powered-By');
 
 function connectionDb(string $dbPath): SQLite3
@@ -231,6 +245,12 @@ function main(): void
 	$methodHtpp = $_SERVER["REQUEST_METHOD"] ?? "GET";
 
 	$db = connectionDb($dbPath);
+
+	$content_length = $_SERVER["CONTENT_LENGTH"];
+
+	if ($content_length > 8388608) {
+		jsonResponseErr(413, "Payload Too Large");
+	}
 
 	switch ($methodHtpp) {
 		case "GET":

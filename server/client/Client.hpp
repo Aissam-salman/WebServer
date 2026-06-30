@@ -24,6 +24,9 @@ private:
   std::string _buffer_send;
   e_state_client _status;
   size_t _offset_send;
+	int _cgi_pipe_fd;
+	pid_t _pid_child;
+	std::string _buffer_cgi;
 
 public:
   Client(void);

@@ -12,6 +12,7 @@
 
 #include "Cgi.hpp"
 #include "Request.hpp"
+#include "utils.hpp"
 #include <cerrno>
 #include <cstddef>
 #include <cstdlib>
@@ -20,10 +21,12 @@
 #include <map>
 #include <ostream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
 
 Cgi::Cgi(std::vector<std::string> ls, Request rq)
     : _languagesSupported(ls), _request(rq) {}
@@ -104,21 +107,23 @@ std::string Cgi::run(void) {
   int ct;
   std::stringstream s(content_length_s);
   s >> ct;
-
   int pipe_body[2];
   int pipe_resp[2];
   if (pipe(pipe_body) == -1) {
-    std::cerr << "Error: pipe: " << strerror(errno) << std::endl;
-    return std::string("");
+		std::string err = std::string("pipe: ").append(strerror(errno));
+		logError(err);
+		throw std::runtime_error(err);
   }
   if (pipe(pipe_resp) == -1) {
-    std::cerr << "Error: pipe: " << strerror(errno) << std::endl;
-    return std::string("");
+		std::string err = std::string("pipe: ").append(strerror(errno));
+		logError(err);
+		throw std::runtime_error(err);
   }
   pid_t pid = fork();
   if (pid < 0) {
-    std::cerr << "Error: fork: " << strerror(errno) << std::endl;
-    return std::string("");
+		std::string err = std::string("fork: ").append(strerror(errno));
+		logError(err);
+		throw std::runtime_error(err);
   }
   if (pid == 0) {
     dup2(pipe_body[0], STDIN_FILENO);
@@ -127,7 +132,8 @@ std::string Cgi::run(void) {
     close(pipe_resp[0]);
     std::string path = _request.getCgi_env().at("SCRIPT_FILENAME");
     execve(path.c_str(), arg.data(), envp.data());
-    std::cerr << "Error: execve:" << strerror(errno) << std::endl;
+		std::string err = std::string("excve: ").append(strerror(errno));
+		logError(err);
     _exit(1);
   } else {
     close(pipe_body[0]);

@@ -85,6 +85,8 @@ size_t strToInt(std::string str);
 // PRINTS THE STRING
 void	display(std::string print);
 
+void logError(const std::string &msg);
+
 
 // COLORS BANK
 // Regular colors

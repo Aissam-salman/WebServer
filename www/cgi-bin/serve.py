@@ -42,6 +42,15 @@ class Request:
         self.body = body
         self.conn = conn
 
+    def _err_server(self):
+        body = json.dumps({"error": "Internal Server Error"})
+        print("Status: 500 Internal Server Error\r")
+        print(f"Content-Type: application/json\r")
+        print(f"Content-Length: {len(body)}\r")
+        print("\r")
+        print(body, end="")
+
+
     def _not_found(self):
         print("Status: 404 Not found\r")
         print("\r")
@@ -391,7 +400,11 @@ def main() -> int:
         query_string=os.environ.get("QUERY_STRING", ""),
         conn=conn,
     )
-    rq.dispatch()
+    try: 
+        rq.dispatch()
+    except:
+        logging.error("Error: dispatch: %s", traceback.format_exc())
+        pass
     conn.close()
     return 0
 

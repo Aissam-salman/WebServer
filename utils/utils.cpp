@@ -1,4 +1,6 @@
 #include "utils.hpp"
+#include <ctime>
+#include <fstream>
 #include <sstream>
 
 std::ostream &endofline(std::ostream &os) { return os << RESET << std::endl; }
@@ -43,4 +45,12 @@ bool    isValidKey(const std::string &key, const std::string keys_list[], const 
             return (true);
     }
     return (false);
+}
+
+void logError(std::string &msg) {
+	std::ofstream log_file_path("logs/server_ws_errors.log", std::ios::app);
+	if (log_file_path.is_open()){
+		time_t now = time(0);
+		log_file_path << "[" << now << "] -|" << msg << std::endl;
+	}
 }
