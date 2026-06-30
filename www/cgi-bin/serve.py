@@ -43,34 +43,30 @@ class Request:
         self.conn = conn
 
     def _not_found(self):
-        print("HTTP/1.1 404 Not found\r")
-        print("Connection: close\r")
+        print("Status: 404 Not found\r")
         print("\r")
 
     def _bad_request(self):
-        print("HTTP/1.1 400 Bad Request\r")
-        print("Connection: close\r")
+        print("Status: 400 Bad Request\r")
         print("\r")
 
     def _OK(self, text):
-        print("HTTP/1.1 200 OK\r")
+        print("Status: 200 OK\r")
         print(f"Content-Length: {len(text)}\r")
         print("Content-Type: application/json\r")
-        print("Connection: close\r")
         print("\r")
         print(text, end="")
 
     def _created(self, new_id):
         body = json.dumps({"id": new_id, "message": "Article created"})
-        print("HTTP/1.1 201 Created\r")
+        print("Status: 201 Created\r")
         print(f"Content-Type: application/json\r")
         print(f"Content-Length: {len(body)}\r")
         print("\r")
         print(body, end="")
 
     def _no_content(self):
-        print("HTTP/1.1 204 No Content\r")
-        print("Connection: close\r")
+        print("Status: 204 No Content\r")
         print("\r")
 
     def Get(self):

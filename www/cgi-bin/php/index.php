@@ -1,10 +1,7 @@
 #!/usr/bin/php-cgi
-
 <?php
+header_remove('X-Powered-By');
 
-
-// DB && HELPER
-//
 function connectionDb(string $dbPath): SQLite3
 {
 	$db = new SQLite3($dbPath);
@@ -133,9 +130,85 @@ function Post(SQLite3 $db, string $storageDir, array $imgExt): void
 	]);
 }
 
-function Put(SQLite3 $db, string $storageDir, array $imgExt, ?int $id): void {}
+function Put(SQLite3 $db, string $storageDir, array $imgExt, ?int $id): void
+{
+	if ($id == null) {
+		jsonResponseErr(400, "Missing image id");
+	}
 
-function Delete(SQLite3 $db, string $storageDir, ?int $id): void {}
+	$req = $db->prepare("SELECT * FROM images WHERE id = :id");
+	$req->bindValue(":id", $id, SQLITE3_INTEGER);
+	$row = $req->execute()->fetchArray(SQLITE3_ASSOC);
+	if (!$row) {
+		jsonResponseErr(404, "Not found");
+	}
+
+	$contentType = $_SERVER["CONTENT_TYPE"] ?? "";
+	$bodyRaw = file_get_contents("php://input");
+	if (empty($bodyRaw)) {
+		jsonResponseErr(400, "Empty body");
+	}
+	if (!isset($imgExt[$contentType])) {
+		jsonResponseErr(415, "Unsupported content type: " . $contentType);
+	}
+
+	$filepathOld = $row["filepath"];
+	if (file_exists($filepathOld)) {
+		unlink($filepathOld);
+	}
+
+	$extension = $imgExt[$contentType];
+	$filename = uniqid("img_", true) . "." . $extension;
+	$filepath = $storageDir . $filename;
+
+	$size = file_put_contents($filepath, $bodyRaw);
+	if ($size == false) {
+		jsonResponseErr(500, "Failed to move uploaded file");
+	}
+
+	$now = date("Y-m-d H:i:s");
+	$req = $db->prepare("UPDATE images filename = :filename, size = :size, path = :path, created_at = :created_at, updated_at = :updated_at WHERE id = :id");
+	$req->bindValue(":filename", $filename, SQLITE3_TEXT);
+	$req->bindValue(":size", $size, SQLITE3_INTEGER);
+	$req->bindValue(":path", $filepath, SQLITE3_TEXT);
+	$req->bindValue(":created_at", $now, SQLITE3_TEXT);
+	$req->bindValue(":updated_at", $now, SQLITE3_TEXT);
+	$req->bindValue(":id", $id);
+	$req->execute();
+
+	http_response_code(200);
+	echo json_encode([
+		"id" => $id,
+		"filename" => $filename,
+		"size" => $size,
+		"path" => $filepath,
+		"created_at" => $row["created_at"],
+		"updated_at" => $now
+	]);
+}
+
+function Delete(SQLite3 $db, string $storageDir, ?int $id): void
+{
+	if ($id == null) {
+		jsonResponseErr(400, "Missing image id");
+	}
+	$req = $db->prepare("SELECT * FROM images WHERE id = :id");
+	$req->bindValue(":id", $id, SQLITE3_INTEGER);
+	$row = $req->execute()->fetchArray(SQLITE3_ASSOC);
+	if (!$row) {
+		jsonResponseErr(404, "Not found");
+	}
+
+	$filepathOld = $row["filepath"];
+	if (file_exists($filepathOld)) {
+		unlink($filepathOld);
+	}
+	$req = $db->prepare("DELETE FROM images WHERE id = :id");
+	$req->bindValue(":id", $id, SQLITE3_INTEGER);
+	$req->execute();
+
+	http_response_code(204);
+}
 
 function main(): void
 {
@@ -177,24 +250,5 @@ function main(): void
 
 	$db->close();
 }
-
 header("Content-Type: application/json");
-
 main();
-
-
-/* function pr(string $msg = "") */
-/* { */
-/* 	echo $msg . "\n"; */
-/* } */
-/**/
-/* pr("--------- [DEBUG] ---------"); */
-/* pr("path_info: " .  $pathInfo); */
-/* pr("method: " . $methodHtpp); */
-/* pr("script_name: " . $_SERVER["SCRIPT_NAME"]); */
-/* pr("query_string: " . $_SERVER["QUERY_STRING"]); */
-/* pr("content_length: " . $_SERVER["CONTENT_LENGTH"]); */
-/* pr("content_type: " . getenv('CONTENT_TYPE')); */
-/**/
-/* $rowBody = file_get_contents("php://input"); */
-/* pr("body: " . $rowBody); */
