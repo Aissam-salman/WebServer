@@ -50,4 +50,10 @@ public:
 	static void					handle_sigint(int);
 };
 
+struct Listener {
+    Socket _socket;
+    std::vector<Server*> _pointers_to_server;
+};
+
+
 #endif

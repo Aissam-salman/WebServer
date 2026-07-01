@@ -31,5 +31,4 @@ class Socket {
 
         void    printSocket(void);
 };
-
 #endif

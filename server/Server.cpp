@@ -90,6 +90,7 @@ void Server::handle_sigint(int) {
 
 void Server::run(void) {
   Socket socket1("SocketTest");
+
   socket1.setSocket(PORT);
   _sockets_vector.push_back(socket1);
   std::vector<std::string> ls;

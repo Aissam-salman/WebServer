@@ -2,6 +2,8 @@
 # define ERRORS_HPP
 
 
+#define ERRS_ARGS_MAIN "Wrong number of argument ! Try with : ./webserv [config file path]"
+
 // ===== LEXER (server/config/Lexer.cpp) =====
 # define ERRS_LEXER_BAD_EXTENSION   "Invalid file name : must end with .conf"
 # define ERRS_LEXER_FILE_OPEN       "Error opening the file : " // + file path
@@ -19,6 +21,7 @@
 # define ERRS_PARSER_DIRECTIVE_OUTSIDE_BLOCK "' found outside any block"
 
 # define ERRS_PARSER_INVALID_SYNTAX   "Invalid syntax for key " // + key
+# define ERRS_PARSER_EXISTING_LOCATION   "A location already exists with name "  // + key
 
 # define ERRS_PARSER_INVALID_METHOD_PREFIX   "Unknown HTTP method '" // + value
 # define ERRS_PARSER_INVALID_METHOD_SUFFIX   "' in methods directive"

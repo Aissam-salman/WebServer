@@ -4,7 +4,12 @@ LES DIFFERENTES ETAPES
 Prendre en compte le fait de developper les classes avant de coder. Tu vas devoir tout changer sinon. 
 * Decomposer en sous probleme, creeer des classes pour resoudre ce sous probleme et faire remonter le tout. 
 
+TODO : 
+    - Finir de gérer les 
+    - Creer la classe parsing_error qui prend des strings + le token pour montrer value et line
+
 # 1 - INITIALISATION DU SERVEUR
+
 
 DECLARATION DU SERVEUR
 
@@ -206,6 +211,8 @@ Fonctions utilisees pour créer les sockets :
 			listen
 			accept
 
+
+
 # 2 - SERVEUR EN COURS D'EXECUTION
 ## 2.1 - REQUETES 
 
@@ -213,18 +220,3 @@ Fonctions utilisees pour créer les sockets :
 
 ## 2.2 - REPONSES
 
-
-
-
-
-3 - Mettre le serveur en mode écoute
-
-
-
-b: Envoyer un premier ping avec le client
-
-5 : Réponse du serveur qui confirme qu'il ecoute
-
-6 : Requete du client vers le serveur avec ce qu'il veut recuperer .
-
-COMPARER PAR RAPPORT AU FONCTIONNEMENT DE BASE DE NGINX SUR LES PATHS DES PAGES D'ERREUR : Données implicitement ou refus de lancer le serveur ? 

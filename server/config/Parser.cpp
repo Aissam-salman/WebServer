@@ -15,7 +15,9 @@
 #include "configutils.hpp"
 
 
-
+// == DEFINITIONS OF GLOBALS / TORS
+// Creates the map linked to the enum for different methods
+// Binds the string to the enum
 static std::map<std::string, e_methods> makeMethodMap(void) {
 	std::map<std::string, e_methods> m;
 	m["GET"]     = GET;
@@ -30,24 +32,27 @@ static std::map<std::string, e_methods> makeMethodMap(void) {
 	return m;
 }
 
+// DEFINES THE DEFAULT MAP FOR METHODS;
 static const std::map<std::string, e_methods> MethodMap = makeMethodMap();
 
+// CONSTRUCTOR TAKING TOKENS_VECTOR AND SERVER_VECTOR'S REFERENCE
 Parser::Parser(std::vector<Token> tokens_vector, std::vector<Server> &servers_vector): _state(GLOBAL), _tokens_vector(tokens_vector), _servers_vector(servers_vector) {
 	std::cout << "Parser constructor called" << std::endl;
 }
 
+// DESTRUCTOR
 Parser::~Parser() {
 	std::cout << "Parser Destructor called" << std::endl;
 }
 
 // ===== UTILS FUNCTONS =====
+// GETTERS
 std::vector<Token> Parser::getTokenVector(void) { return (_tokens_vector); }
-
 Server&             Parser::getCurrentServer(void) { return (_servers_vector.back()); }
-
 Location&           Parser::getCurrentLocation(void) { return (_servers_vector.back().getCurrentLocation()); }
 
 
+// LOWERS SCOPE : SERVER -> GLOBAL / LOCATION -> SERVER 
 void	Parser::lowerScope(void) {
 	// std::cout << BOLD_WHITE << "LOWERING SCOPE" << endofline;
 	if (_state == SERVER)
@@ -58,6 +63,7 @@ void	Parser::lowerScope(void) {
 		throw std::runtime_error (ERRS_PARSER_SCOPE_UNDERFLOW);
 }
 
+// UPS SCOPE : SERVER -> LOCATION / GLOBAL -> SERVER 
 void	Parser::upperScope(void) {
 	// std::cout << BOLD_WHITE << "UPPING SCOPE" << endofline;
 	if (_state == SERVER)
@@ -68,8 +74,7 @@ void	Parser::upperScope(void) {
 		throw std::runtime_error (ERRS_PARSER_SCOPE_OVERFLOW);
 }
 
-// ===== METHODS =====
-// PARSES DIRECTIVE SERVER / LOCATION
+// RETURNS THE VECTOR OF TOKEN TO PARSE THE NEXT DIRECTIVE
 std::vector<Token>	Parser::findNextSemicolon(size_t index) {
 
 	for (size_t i = index; i < _tokens_vector.size(); i++) {
@@ -81,29 +86,45 @@ std::vector<Token>	Parser::findNextSemicolon(size_t index) {
 	throw std::runtime_error(ERRS_PARSER_UNTERMINATED_DIRECTIVE);
 }
 
+// CHECKS FOR A VECTOR LENGTH OF 3 : DIRECTIVE + VALUE + SEMICOLON
+void	Parser::expectSingleValue(void) {
+	if (_temp_vector.size() != 3)
+		throw std::runtime_error (ERRS_PARSER_INVALID_SYNTAX + _temp_vector[0]._value);
+}
+
+// ===== METHODS =====
+// PARSES DIRECTIVE SERVER / LOCATION
+
+// Checks the validity of the directive and builds the associated object
 void	Parser::parseStateDirective(size_t& index) {
 	const std::string& key = _tokens_vector[index]._value;
 
+	// CONSTRUCTS A NEW SERVER
 	if (_tokens_vector[index]._value == "server" && _tokens_vector[index + 1]._type == Token::OPEN_BRACKET) {
 		if (_state != GLOBAL)
 				throw std::runtime_error(ERRS_PARSER_DIRECTIVE_PREFIX + key + ERRS_PARSER_DIRECTIVE_IN_LOCATION);
 
+		// Builds a new server from dust and pushes it into existing servers_vector
 		Server new_server;
 		_servers_vector.push_back(new_server);
 		upperScope();
 		index++;
 	}
 
+	// CONSTRUCTS A NEW LOCATION
 	else if (_tokens_vector[index]._value == "location" && _tokens_vector[index + 2]._type == Token::OPEN_BRACKET) {
 		if (_state != SERVER)
 				throw std::runtime_error(ERRS_PARSER_DIRECTIVE_PREFIX + key + ERRS_PARSER_DIRECTIVE_IN_LOCATION);
+
 		// TODO : Check if folder doesn´t exist already
 
 		std::vector<Location>& locations_vector = getCurrentServer().getServerLocationsVector();
 		for (size_t i = 0; i < locations_vector.size(); i++) {
 			if (locations_vector[i].getName() == _tokens_vector[index + 1]._value)
-				throw std::runtime_error ("A location already exists with name " + _tokens_vector[index + 1]._value);
+				throw std::runtime_error (ERRS_PARSER_EXISTING_LOCATION + _tokens_vector[index + 1]._value);
 		}
+
+		// Builds a new location from dust and pushes it into existing locations_vector
 		Location new_location(_tokens_vector[index + 1]._value, getCurrentServer().getMaxBodySize());
 		_servers_vector.back().addLocation(new_location);
 		upperScope();
@@ -115,26 +136,23 @@ void	Parser::parseStateDirective(size_t& index) {
 
 
 // ===== DIRECTIVES FUNCTIONS =====
-// directive + value + ';' == 3 tokens
-void	Parser::expectSingleValue(void) {
-	if (_temp_vector.size() != 3)
-		throw std::runtime_error (ERRS_PARSER_INVALID_SYNTAX + _temp_vector[0]._value);
-}
 
+// TODO: no need to check for access now, it will be checked for each request
+// SETS UP ROOT PATH
 void				Parser::setupRoot(void) {
 	expectSingleValue();
-
-	// std::cout << BOLD_GREEN << "ROOT = " << _temp_vector[1]._value << endofline;
+// std::cout << BOLD_GREEN << "ROOT = " << _temp_vector[1]._value << endofline;
 	getCurrentLocation().setRootPath(_temp_vector[1]._value);
 }
 
+// SETS UP INDEX PATH
 void				Parser::setupIndex(void) {
 	expectSingleValue();
-
 	// std::cout << BOLD_GREEN << "INDEX = " << _temp_vector[1]._value << endofline;
 	getCurrentLocation().setIndexPath(_temp_vector[1]._value);
 }
 
+// DISPATCHES BETWEEN THE MAP OF METHOD TO ADD THE PERMISSIONS TO EACH LOCATION
 void	Parser::setupMethods(void) {
 
 	for (size_t i = 1; i + 1 < _temp_vector.size(); i++) {
@@ -143,24 +161,23 @@ void	Parser::setupMethods(void) {
 			if (it == MethodMap.end())
 					throw std::runtime_error(ERRS_PARSER_INVALID_METHOD_PREFIX
 							+ _temp_vector[i]._value + ERRS_PARSER_INVALID_METHOD_SUFFIX);
-			getCurrentLocation().getMethodFlag() |= it->second;   // duplicate method = harmless no-op
+			getCurrentLocation().getMethodFlag() |= it->second; 
 	}
 }
 
+// SETTING UP THE MAX BODY SIZE, TAKING IN ACCOUNT IF THERE'S A SIZE CHARACTER
 void				Parser::setupMaxBodySize(void) {
 	expectSingleValue();
-
 	const std::string& value = _temp_vector[1]._value;
-
 	errno = 0;
 	char* end = NULL;
 	long  number = std::strtol(value.c_str(), &end, 10);
 
-	if (end == value.c_str())                     
-		throw std::runtime_error(ERRS_PARSER_INVALID_SYNTAX + value);
-	if (errno == ERANGE || number < 0)
+	// Checks if number matches to the standard
+	if (end == value.c_str() ||errno == ERANGE || number < 0 )                     
 		throw std::runtime_error(ERRS_PARSER_INVALID_SYNTAX + value);
 
+	// Multiplier is used in times where 10M or 10G is written
 	long multiplier = 1;
 	if (end[0] != '\0' && end[1] == '\0') {
 		switch (std::toupper(static_cast<unsigned char>(end[0]))) {
@@ -176,6 +193,7 @@ void				Parser::setupMaxBodySize(void) {
 	if (number > LONG_MAX / multiplier)           
 		throw std::runtime_error(ERRS_PARSER_INVALID_SYNTAX + value);
 
+	// Sets the max_body_size of the location or to the server
 	long result = number * multiplier;
 	if (_state == LOCATION)
 		getCurrentLocation().setMaxBodySize(result);
@@ -183,35 +201,45 @@ void				Parser::setupMaxBodySize(void) {
 		getCurrentServer().setMaxBodySize(result);
 }
 
+// Checks if the standard of IPv4 adresses is well respected
 static bool	isValidIP(const std::string& host) {
 	int		octets = 0;
 	size_t	i = 0;
 
+	// Loops through the host string such as X.X.X.X
 	while (i < host.size()) {
 		size_t	start = i;
 		int		value = 0;
 
+		// Atoi with a check on the value
 		while (i < host.size() && std::isdigit(static_cast<unsigned char>(host[i]))) {
 			value = value * 10 + (host[i] - '0');
 			if (value > 255)
 				return (false);
 			i++;
 		}
+
+		// If no number found or too many numbers found
 		if (i == start || i - start > 3)
 			return (false);
 		octets++;
+
 		if (i < host.size()) {
 			if (host[i] != '.' || i + 1 == host.size())
 				return (false);
 			i++;
 		}
 	}
+	// Returns true if there are actually 4 octets
 	return (octets == 4);
 }
 
+
+// Checks if the standard of port is well respected
 static int	parsePort(const std::string& port_str) {
 	if (port_str.empty())
 		throw std::runtime_error(ERRS_PARSER_INVALID_PORT + port_str);
+
 	for (size_t i = 0; i < port_str.size(); i++) {
 		if (!std::isdigit(static_cast<unsigned char>(port_str[i])))
 			throw std::runtime_error(ERRS_PARSER_INVALID_PORT + port_str);
@@ -223,34 +251,43 @@ static int	parsePort(const std::string& port_str) {
 
 	if (errno == ERANGE || *end != '\0' || port < 1 || port > 65535)
 		throw std::runtime_error(ERRS_PARSER_INVALID_PORT + port_str);
+
 	return (static_cast<int>(port));
 }
 
 
+// CONSTRUCTS A NEW SOCKET AFTER PARSING THE VECTOR OF TOKENS
 void	Parser::setupListen(void) {
+
+
 	expectSingleValue();
 	const std::string&	value = _temp_vector[1]._value;
 
-	// Two accepted formats: "X.X.X.X:PORT" or "PORT" (host defaults to 0.0.0.0)
+	// Two accepted formats: X.X.X.X:PORT or PORT
 	std::string	host = "0.0.0.0";
 	std::string	port_str = value;
-	size_t	colon = value.rfind(':');
 
+
+	// Splits between host and port via :
+	size_t	colon = value.rfind(':');
 	if (colon != std::string::npos) {
 		host = value.substr(0, colon);
 		port_str = value.substr(colon + 1);
-		if (!isValidIP(host))
+		if (isValidIP(host) == false)
 			throw std::runtime_error(ERRS_PARSER_INVALID_HOST + host);
 	}
-
 	int	port = parsePort(port_str);
 
+	// Initializes the socket after parsing its parts
 	Socket	new_socket;
 	new_socket.setHost(host);
 	new_socket.setPort(port);
+
+	// TODO : Gestion de création de plusieurs sockets sur le meme port	-> Ajout de la structure listener
 	getCurrentServer().getSockets().push_back(new_socket);
 }
 
+// SETS THE AUTOINDEX BOOLEAN
 void				Parser::setupAutoIndex(void) {
 	expectSingleValue();
 
@@ -262,6 +299,7 @@ void				Parser::setupAutoIndex(void) {
 		throw std::runtime_error (ERRS_PARSER_INVALID_AUTOINDEX);
 }
 
+// SETS THE SERVER NAME + CHECKS IF IT WASN'T ALREADY USED / NAMED
 void				Parser::setupServerName(void) {
 	expectSingleValue();
 
@@ -274,20 +312,25 @@ void				Parser::setupServerName(void) {
 			throw std::runtime_error (ERRS_PARSER_DUPLICATE_SERVER_NAME_PREFIX
 					+ _temp_vector[1]._value + ERRS_PARSER_SERVER_NAME_SUFFIX);
 	}
-
 	getCurrentServer().setServerName(_temp_vector[1]._value);
 }
 
-
+// SETS THE RETURN IN CASE OF REDIRECTION
 void				Parser::setupReturn(void) {
 	if (_temp_vector.size() != 4)
 		throw std::runtime_error (ERRS_PARSER_INVALID_SYNTAX + _temp_vector[0]._value);
 
-	int error_code = std::atoi( _temp_vector[1]._value.c_str());
-	getCurrentLocation().setReturnErrorCode(error_code);
+	char*	end = NULL;
+	long	code = std::strtol( _temp_vector[1]._value.c_str(), &end, 10);
+
+	if (errno == ERANGE || *end != '\0' || code < 300 || code > 599) // TODO : VERIFY FOR THE ALLOWED ERROR CODES FOR REDIR
+		throw std::runtime_error(ERRS_PARSER_INVALID_ERROR_CODE + _temp_vector[1]._value);
+
+	getCurrentLocation().setReturnErrorCode(code);
 	getCurrentLocation().setReturnPath( _temp_vector[2]._value );
 }
 
+// Checks if the error code is conform and in the range given
 static int	parseErrorCode(const std::string& code_str) {
 	if (code_str.empty())
 		throw std::runtime_error(ERRS_PARSER_INVALID_ERROR_CODE + code_str);
@@ -300,39 +343,38 @@ static int	parseErrorCode(const std::string& code_str) {
 	char*	end = NULL;
 	long	code = std::strtol(code_str.c_str(), &end, 10);
 
-	// nginx accepts response codes in the 300..599 range for error_page
 	if (errno == ERANGE || *end != '\0' || code < 300 || code > 599)
 		throw std::runtime_error(ERRS_PARSER_INVALID_ERROR_CODE + code_str);
 	return (static_cast<int>(code));
 }
 
-// error_page <code> [<code>...] <path>;  -> at least directive + code + path + ';'
+// SETSUP ERROR PAGES FOUND IN THE .CONF
 void				Parser::setupErrorPages(void) {
 	if (_temp_vector.size() < 4)
 		throw std::runtime_error(ERRS_PARSER_INVALID_SYNTAX + _temp_vector[0]._value);
 
-	// Last token is the SEMICOLON, the one before it is the page path.
 	const std::string&	path = _temp_vector[_temp_vector.size() - 2]._value;
 
-	// Every token between the directive and the path is an error code.
 	for (size_t i = 1; i + 2 < _temp_vector.size(); i++) {
 		int	code = parseErrorCode(_temp_vector[i]._value);
-		// std::cout << BOLD_GREEN << "ERROR_PAGE " << code << " = " << path << endofline;
 		getCurrentServer().addErrorPage(code, path);
+		// std::cout << BOLD_GREEN << "ERROR_PAGE " << code << " = " << path << endofline;
 	}
 }
 
 // RETURNS THE VECTOR OF TOKENS FOR THE DIRECTIVE TO TREAT
 void	Parser::findDirectiveTokenVector(size_t& index) {
 	findNextSemicolon(index);
-
 	index += _temp_vector.size() - 1;
 }
 
 
+// TODO : Refactoriser cette immondice
+// Handles handles the different directives
 void	Parser::parseDirective(size_t& index) {
 	const std::string& key = _tokens_vector[index]._value;
 
+	// Switch case to check the validity of a directive confronted to its scope
 	switch (_state) {
 		case GLOBAL:
 			throw std::runtime_error(ERRS_PARSER_DIRECTIVE_PREFIX + key + ERRS_PARSER_DIRECTIVE_OUTSIDE_BLOCK);
@@ -345,6 +387,9 @@ void	Parser::parseDirective(size_t& index) {
 				throw std::runtime_error(ERRS_PARSER_DIRECTIVE_PREFIX + key + ERRS_PARSER_DIRECTIVE_IN_LOCATION);
 			break;
 	}
+
+	// Gets the manipulation's vector until the next ;
+	// TODO : Change it to an array of pointers to function
 	findDirectiveTokenVector(index);
 	if (_temp_vector[0]._value == "methods")
 		setupMethods();
@@ -368,17 +413,33 @@ void	Parser::parseDirective(size_t& index) {
 
 // MAIN PARSING FUNCTION -> CREATING THE CLASSES
 void	Parser::initServers(void) {
+	
+	// LOGIC
+	// Loops through the whole tokens vector
 	for (size_t i = 0; i < _tokens_vector.size(); i++) {
+
+		// Encountering a closed bracket
 		if (_tokens_vector[i]._type == Token::CLOSED_BRACKET)
 			lowerScope();
+
+		// Checks for construction of new server / location
 		else if (isValidKey(_tokens_vector[i]._value, STATE_DIRECTIVES, STATE_DIRECTIVES_SIZE))
 			parseStateDirective(i);
+
+		// Handles the other directives
 		else if (isValidKey(_tokens_vector[i]._value, SERVER_DIRECTIVES, SERVER_DIRECTIVES_SIZE) || isValidKey(_tokens_vector[i]._value, LOCATION_DIRECTIVES, LOCATION_DIRECTIVES_SIZE))
 			parseDirective(i);
+
+
+		// Sends an error 
 		else
 			throw std::runtime_error (ERRS_PARSER_INVALID_DIRECTIVE_PREFIX + _tokens_vector[i]._value + ERRS_PARSER_INVALID_DIRECTIVE_SUFFIX);
+		
+		// Clears the temporary vector
 		_temp_vector.clear();
 	}
+
+	// ERROR CASES
 	if (_state != GLOBAL)
 		throw std::runtime_error (ERRS_PARSER_INCOMPLETE_FILE);
 	else if (_servers_vector.size() < 1) {
@@ -386,7 +447,9 @@ void	Parser::initServers(void) {
 	}
 }
 
-// ===== TEST/OUTPUT =====
+// ===== TEST/OUTPUT ===== // 
+
+// (F) OUTPUTS PARSER STATE ON STDOUT
 void	Parser::printState(void) {
 	switch (_state) {
 		case GLOBAL : display("GLOBAL"); break;

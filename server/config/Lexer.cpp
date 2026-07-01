@@ -34,9 +34,7 @@ static std::string formatConfFile(const std::string &line) {
     return result;
 }
 
-std::vector<Token> Lexer::getTokenVector(void) {
-    return (_tokens_vector);
-}
+std::vector<Token> Lexer::getTokenVector(void) { return (_tokens_vector); }
 
 // ===== METHODS =====
 // CREATES STD::STRING _TOKENS_VECTORS
@@ -79,18 +77,3 @@ void    Lexer::printRawConfFile(void) {
     _raw_conf_file.clear(); // RETURN TO THE BEGININ OF THE IFSTREAM
     _raw_conf_file.seekg(0); // RETURN TO THE BEGININ OF THE IFSTREAM
 }
-
-// ============================ ARCHIVES ============================
-// SET TOKENS TYPE
-// else if (isValidKey(token._value, GLOBAL_DIRECTIVES, GLOBAL_DIRECTIVES_SIZE) == true)
-//     token._type = Token::DIRECTIVE;
-// else if (isValidKey(token._value, SERVER_DIRECTIVES, SERVER_DIRECTIVES_SIZE) == true)
-//     token._type = Token::DIRECTIVE;
-// else if (isValidKey(token._value, LOCATION_DIRECTIVES, LOCATION_DIRECTIVES_SIZE) == true)
-//     token._type = Token::DIRECTIVE;
-// else {
-//     res = std::strtol(token._value.c_str(), &end, 10);
-//     if (*end != '\0' || (errno == ERANGE && (res == LONG_MIN || res == LONG_MAX)))
-//         token._type = Token::PARAMETER_STR;
-//     else
-//         token._type = Token::PARAMETER_NBR;
