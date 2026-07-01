@@ -106,7 +106,7 @@ void Request::parseRequestLine(const std::string &first_line) {
   std::string extra;
   if (iss >> extra)
     throw std::invalid_argument("400");
-  if (method != "GET" && method != "POST" && method != "DELETE")
+  if (method != "GET" && method != "POST" && method != "DELETE" && method != "PUT")
     throw std::runtime_error("405");
   if (http_version != "HTTP/1.1" && http_version != "HTTP/1.0")
     throw std::runtime_error("505");
@@ -155,6 +155,16 @@ void Request::parseCgi_env() {
   //
   size_t extension_pos = path.find(".py");
   if (extension_pos != std::string::npos) {
+    size_t end = path.find("/", extension_pos);
+    if (end != std::string::npos) {
+      cgi_env["SCRIPT_NAME"] = path.substr(0, end);
+      cgi_env["PATH_INFO"] = path.substr(end);
+    } else {
+      cgi_env["SCRIPT_NAME"] = path;
+      cgi_env["PATH_INFO"] = "";
+    }
+    //INFO: integrate php cgi
+  } else if ((extension_pos = path.find(".php")) != std::string::npos) {
     size_t end = path.find("/", extension_pos);
     if (end != std::string::npos) {
       cgi_env["SCRIPT_NAME"] = path.substr(0, end);

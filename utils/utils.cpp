@@ -1,4 +1,6 @@
 #include "utils.hpp"
+#include <ctime>
+#include <fstream>
 #include <sstream>
 
 std::ostream &endofline(std::ostream &os) { return os << RESET << std::endl; }
@@ -44,3 +46,61 @@ bool    isValidKey(const std::string &key, const std::string keys_list[], const 
     }
     return (false);
 }
+
+void logError(std::string &msg) {
+	std::ofstream log_file_path("logs/server_ws_errors.log", std::ios::app);
+	if (log_file_path.is_open()){
+		time_t now = time(0);
+		log_file_path << "[" << now << "] -|" << msg << std::endl;
+	}
+}
+
+const std::string buildHttpResponse(const std::string &cgi_output) {
+  size_t sep_pos = cgi_output.find("\r\n\r\n");
+  size_t sep_len = 4;
+
+  if (sep_pos == std::string::npos) {
+    // sep dif sometimes language change
+    sep_pos = cgi_output.find("\n\n");
+    sep_len = 2;
+  }
+  std::string header;
+  std::string body;
+  if (sep_pos != std::string::npos) {
+    header = cgi_output.substr(0, sep_pos);
+    body = cgi_output.substr(sep_pos + sep_len);
+  } else {
+    // no separator all is body
+    body = cgi_output;
+  }
+
+  // default status
+  std::string status_line = "200 OK";
+  std::istringstream header_stream(header);
+  std::string line;
+  std::string saved_header;
+
+  while (std::getline(header_stream, line)) {
+    if (!line.empty() && line[line.size() - 1] == '\r') {
+      line.erase(line.size() - 1);
+    }
+    if (line.empty())
+      continue;
+    if (line.compare(0, 8, "Status: ") == 0)
+      status_line = line.substr(8);
+    else
+      saved_header += line + "\r\n";
+  }
+  saved_header += "Connection: close\r\n";
+
+  // build resp
+  std::ostringstream resp;
+  resp << "HTTP/1.1 " << status_line << "\r\n";
+  resp << saved_header;
+  if (saved_header.find("Content-Length:") == std::string::npos) {
+    resp << "Content-Length: " << body.size() << "\r\n";
+  }
+  resp << "\r\n" << body;
+  return resp.str();
+}
+
