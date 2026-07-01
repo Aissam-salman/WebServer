@@ -166,9 +166,9 @@ void Server::run(void) {
             _clients.erase(fd);
             poll_fds.erase(poll_fds.begin() + i--);
           } else if (client.getStatus() == WRITTING) {
-            client._request.parseRequest(client.getBufferRead());
             std::string resp;
             if (client._request.isCGI()) {
+              client._request.parseRequest(client.getBufferRead());
               Cgi cgi(ls, &client);
               cgi.run();
               pollfd pfd;
@@ -178,8 +178,7 @@ void Server::run(void) {
               _pipe_to_client[client.getCgiPipefd()] = fd;
             } else {
               try {
-                std::cerr << "[DEBUG]" << std::endl;
-                int r = client._request.parseRequest(client.getBufferRead());
+                client._request.parseRequest(client.getBufferRead());
                 Response response(200);
                 std::string bu = response.build();
                 client.setResponse(bu);
