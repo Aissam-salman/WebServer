@@ -67,7 +67,6 @@ enum e_methods {
 	TRACE = 1 << 8
 };
 
-void	printSetMethods(int flag);
 
 
 typedef std::map<int, std::string> MapIntStr;
@@ -75,15 +74,16 @@ typedef std::map<int, std::string> MapIntStr;
 // CHECK A KEY 
 bool    isValidKey(const std::string &key, const std::string keys_list[], const size_t size) ;
 
-
-
 // UTILS FOR OUTPUT
+void	printSetMethods(int flag);
+
 // RESET AND ENDL
 std::ostream& endofline(std::ostream& os);
 size_t strToInt(std::string str);
 
 // PRINTS THE STRING
 void	display(std::string print);
+
 
 
 // COLORS BANK

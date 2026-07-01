@@ -16,6 +16,7 @@ void    Token::setSeparatorType(void) {
         _type = SEMICOLON;
 }
 
+
 void    Token::printToken(void) const {
     display("Token value = " + _value);
     std::cout << "Token type = ";

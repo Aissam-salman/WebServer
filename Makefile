@@ -1,30 +1,43 @@
 NAME   = WebServ
 
+# ============== DIRECTORIES =================
+SRC_DIR    = server
+UTILS_DIR  = utils
+CONFIG_DIR = $(SRC_DIR)/config
+CGI_DIR    = $(SRC_DIR)/cgi
+CLIENT_DIR = $(SRC_DIR)/client
+
+INCLUDES   = -I $(SRC_DIR) -I $(UTILS_DIR) -I $(CONFIG_DIR) -I $(CGI_DIR) -I $(CLIENT_DIR)
+
 CXX      = c++
 CXXFLAGS = -Wall -Wextra -Werror -Wswitch \
            -Wpedantic -Wshadow -Wnon-virtual-dtor -Wold-style-cast \
            -std=c++98 -MMD -MP \
-           -I server  -I utils  -I server/config -I server/cgi -I server/client
+           $(INCLUDES)
 
 LDFLAGS  =
 
 # ============== SRC-FILES ===================
 SERVER_SRC = \
-    server/main.cpp \
-    server/Server.cpp \
-    server/Location.cpp \
-    server/Socket.cpp \
-		server/config/Lexer.cpp \
-    server/client/Client.cpp \
-		server/config/Token.cpp \
-    server/config/configutils.cpp \
-		server/Request.cpp \
-		server/cgi/Cgi.cpp \
-    utils/utils.cpp \
+    $(SRC_DIR)/main.cpp \
+    $(SRC_DIR)/Server.cpp \
+    $(SRC_DIR)/Location.cpp \
+    $(SRC_DIR)/Socket.cpp \
+    $(SRC_DIR)/Request.cpp \
+    $(CONFIG_DIR)/Lexer.cpp \
+    $(CONFIG_DIR)/Token.cpp \
+    $(CONFIG_DIR)/Parser.cpp \
+    $(CONFIG_DIR)/configutils.cpp \
+    $(CGI_DIR)/Cgi.cpp \
+    $(CLIENT_DIR)/Client.cpp \
+    $(UTILS_DIR)/utils.cpp \
 
 OBJDIR     = objs
 SERVER_OBJ = $(patsubst %.cpp,$(OBJDIR)/%.o,$(SERVER_SRC))
 DEPS       = $(SERVER_OBJ:.o=.d) $(CLIENT_OBJ:.o=.d)
+
+# all project headers, found recursively (used by watch-server)
+HEADERS    = $(shell find $(SRC_DIR) $(UTILS_DIR) -name '*.hpp')
 
 # ============== DEBUG / SANITIZER FLAGS =====
 DEBUG_FLAGS = -g3 -O0
@@ -83,7 +96,7 @@ watch-server:
 	}
 	@$(MAKE) --no-print-directory server && echo "── run ──" && ./$(NAME); true
 	@echo "watching server files — Ctrl-C to stop"
-	@fswatch -o $(SERVER_SRC) $(wildcard server/*.hpp) $(wildcard utils/*.hpp) | while read -r _; do \
+	@fswatch -o $(SERVER_SRC) $(HEADERS) | while read -r _; do \
 		clear; \
 		printf '↻ %s — rebuilding\n' "$$(date +%H:%M:%S)"; \
 		$(MAKE) --no-print-directory server && echo "── run ──" && ./$(NAME); true; \

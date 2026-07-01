@@ -1,57 +1,87 @@
 #include "Server.hpp"
 #include "cgi/Cgi.hpp"
+#include "config/configutils.hpp"
 #include "utils.hpp"
 #include <csignal>
 #include <iostream>
 #include <stdexcept>
 #include <sys/poll.h>
+#include <unistd.h>
 #include <vector>
 #include "Response.hpp"
 
 bool Server::_running = true;
 
 // ==== ~TORS ====
-Server::Server(void) : _max_body_size(-1) {
-  std::cout << BOLD_CYAN << "Server Default constructor called" << RESET
-            << std::endl;
+Server::Server(void) : _name(""), _error_pages(initErrorPages()), _max_body_size(0) {
 }
 
-Server::Server(std::string name) : _name(name), _max_body_size(-1) {
-  std::cout << BOLD_CYAN << "Server Name constructor called" << RESET
-            << std::endl;
+Server::Server(std::string name) : _name(name), _error_pages(initErrorPages()), _max_body_size(-1) {
+}
+Server::Server(const Server &src)
+    : _name(src._name), _sockets_vector(src._sockets_vector), _locations_vector(src._locations_vector),
+      _error_pages(src._error_pages), _max_body_size(src._max_body_size),
+      _clients(src._clients) {
 }
 
 Server::~Server() {
-  std::cout << BOLD_RED << "Server Destructor called" << RESET << std::endl;
 }
 
 // ==== GETTERS ====
-std::vector<Location> &Server::getServerLocationsVector(void) {
-  return (_locations);
-}
+void                  Server::setMaxBodySize(long size) { _max_body_size = size; }
+void						      Server::setServerName(std::string name) { _name = name;}
+std::vector<Location> &Server::getServerLocationsVector(void) { return (_locations_vector); }
+std::string					Server::getServerName(void) {return (_name);}
 
-std::vector<Location> &Server::getLocations(void) { return (_locations); }
+std::vector<Location> &Server::getLocations(void) { return (_locations_vector); }
 
-std::vector<Socket> &Server::getSockets(void) { return (_sockets); }
+long                   Server::getMaxBodySize(void) const { return (_max_body_size); }
+Location&             Server::getCurrentLocation(void) { return (_locations_vector.back());}
+std::vector<Socket>   &Server::getSockets(void) { return (_sockets_vector); }
 
 MapIntStr &Server::getErrorPages(void) { return (_error_pages); }
+std::map<int, Client> &Server::getClients(void) { return (_clients); }
+
+
+
+void  Server::addLocation(Location& new_location) {
+  _locations_vector.push_back(new_location);
+}
+
+void  Server::addSocket(Socket& new_socket) {
+  _sockets_vector.push_back(new_socket);
+}
+
+void  Server::addErrorPage(int code, std::string path) {
+  _error_pages[code] = path;
+}
+
 
 // ==== OUTPUTS ====
+void  Server::printErrorPages(void) {
+  std::cout << BOLD_CYAN << "ERROR PAGES" << endofline;
+  for (MapIntStr::const_iterator it = _error_pages.begin(); it != _error_pages.end(); ++it) {
+    std::cout << "[" << it->first << "] -> " << it->second << endofline;
+  }
+}
+
 void Server::printServer(void) {
-  display("[ ==== GLOBAL INFOS ==== ]");
+  display("\n[ ==== GLOBAL INFOS ==== ]");
   display("SERVER NAME = " + _name);
-  std::cout << "NBR OF SOCKETS = " << _sockets.size() << std::endl;
-  for (size_t i = 0; i < _sockets.size(); i++) {
+  printErrorPages();
+  std::cout << "NBR OF SOCKETS = " << _sockets_vector.size() << std::endl;
+  for (size_t i = 0; i < _sockets_vector.size(); i++) {
     std::cout << BOLD_CYAN << "LOCATION NUMBER " << i << endofline;
-    _sockets[i].printSocket();
+    _sockets_vector[i].printSocket();
     std::cout << endofline;
   }
   std::cout << endofline;
-  for (size_t i = 0; i < _locations.size(); i++) {
+  for (size_t i = 0; i < _locations_vector.size(); i++) {
     std::cout << BOLD_CYAN << "LOCATION NUMBER " << i << endofline;
-    _locations[i].printLocation();
+    _locations_vector[i].printLocation();
     std::cout << endofline;
   }
+  std::cout << BOLD_MAGENTA << "[===========-------===========]" << endofline;
 }
 
 void Server::handle_sigint(int) {
@@ -61,16 +91,17 @@ void Server::handle_sigint(int) {
 
 void Server::run(void) {
   Socket socket1("SocketTest");
+
   socket1.setSocket(PORT);
-  _sockets.push_back(socket1);
+  _sockets_vector.push_back(socket1);
   std::vector<std::string> ls;
   ls.push_back("python");
 
   signal(SIGINT, handle_sigint);
   std::vector<pollfd> poll_fds;
 
-  std::vector<Socket>::iterator it = _sockets.begin();
-  std::vector<Socket>::iterator ite = _sockets.end();
+  std::vector<Socket>::iterator it = _sockets_vector.begin();
+  std::vector<Socket>::iterator ite = _sockets_vector.end();
   for (; it != ite; it++) {
     pollfd pfd;
     pfd.fd = (*it).getSocketFd();
