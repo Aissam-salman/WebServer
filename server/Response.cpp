@@ -79,6 +79,7 @@ Response::Response(int code) : _status_code(code), _content_type("text/html")
     _body = body.str();
 }
 
+//FIX: take request, handle if file... 
 std::string Response::build()
 {
     std::map<int, std::string> reasons;

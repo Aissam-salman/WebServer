@@ -89,6 +89,7 @@ void Request::parseRequestLine(const std::string &first_line) {
 
 void Request::parseCgi_env() {
   cgi_env["REQUEST_METHOD"] = method;
+	
   cgi_env["SERVER_PROTOCOL"] = http_version;
   cgi_env["GATEWAY_INTERFACE"] = "CGI/1.1";
   cgi_env["SERVER_SOFTWARE"] = "webserv/1.0";
@@ -118,18 +119,6 @@ void Request::parseCgi_env() {
     cgi_env["QUERY_STRING"] = "";
   }
 
-  // cgi_env["SCRIPT_NAME"] = path;
-  // cgi_env["PATH_INFO"] = "";
-  // size_t pos = 7;
-  // while ((pos = path.find("/", pos + 1)) != std::string::npos) {
-  //   std::string s = path.substr(pos + 1, path.find("/", pos + 1) - (pos +
-  //   1)); if (s.find(".") != std::string::npos) {
-  //     cgi_env["SCRIPT_NAME"] = path.substr(0, pos + 1 + s.length());
-  //     cgi_env["PATH_INFO"] = path.substr(pos + 1 + s.length());
-  //     break;
-  //   }
-  // }
-  //
   size_t extension_pos = path.find(".py");
   if (extension_pos != std::string::npos) {
     size_t end = path.find("/", extension_pos);
