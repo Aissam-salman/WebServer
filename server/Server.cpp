@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <sys/poll.h>
 #include <vector>
+#include "Response.hpp"
 
 bool Server::_running = true;
 
@@ -104,20 +105,8 @@ void Server::run(void) {
             _clients.erase(fd);
             poll_fds.erase(poll_fds.begin() + i--);
           } else if (client.getStatus() == WRITTING) {
-            client._request.parseRequest(client.getBufferRead());
-            std::string resp;
-            if (client._request.isCGI()) {
-              Cgi cgi(ls, client._request);
-              resp = cgi.run();
-            } else {
-              // resp = buildResp(client._request);
-              resp = "HTTP/1.1 200 OK\r\nContent-Type: text/html; "
-                     "charset=utf-8\r\nContent-Length: 53\r\nConnection: "
-                     "keep-alive\r\n\r\n<!DOCTYPE html><html><body>Hello "
-                     "world</body></html>";
-            }
-            client.setResponse(resp);
-            poll_fds[i].events = POLLOUT;
+            client.process(ls);
+            poll_fds[i].events = POLLOUT; 
           }
         } else if (poll_fds[i].revents & POLLOUT) {
           bool isDone = client.handleSend();
