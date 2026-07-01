@@ -11,22 +11,24 @@
 /* ************************************************************************** */
 
 #pragma once
-#include "../Request.hpp"
+
+#include "Client.hpp"
+#include "Request.hpp"
 #include <string>
 #include <vector>
 
 class Cgi {
 private:
   std::vector<std::string> _languagesSupported;
-  Request _request;
+  Client *_client;
 
   Cgi(void);
 
 public:
-  Cgi(std::vector<std::string> ls, Request rq);
+  Cgi(std::vector<std::string> ls, Client *client);
   ~Cgi(void);
 
-  std::string run(void);
+  void run(void);
 };
 
 /*
@@ -75,8 +77,9 @@ execve(script_path, argv, envp);   // envp is your CGI env vars
 Avec document_root = /var/www/html
 SCRIPT_NAME     = /cgi-bin/router.py
 SCRIPT_FILENAME = /var/www/html/cgi-bin/router.py   (chemin réel du script
-exécuté) PATH_INFO       = /user/create 
-PATH_TRANSLATED =   /var/www/html/user/create          (PATH_INFO traduit en chemin disque)
+exécuté) PATH_INFO       = /user/create
+PATH_TRANSLATED =   /var/www/html/user/create          (PATH_INFO traduit en
+chemin disque)
 
 * Body
 * CONTENT_LENGTH byte size

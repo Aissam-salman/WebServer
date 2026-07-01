@@ -20,7 +20,7 @@ SERVER_SRC = \
     server/config/configutils.cpp \
 		server/Request.cpp \
 		server/cgi/Cgi.cpp \
-    utils/utils.cpp \
+    utils/utils.cpp 
 
 OBJDIR     = objs
 SERVER_OBJ = $(patsubst %.cpp,$(OBJDIR)/%.o,$(SERVER_SRC))
