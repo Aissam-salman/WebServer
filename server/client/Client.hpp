@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Client.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
+/*   By: tgomez-f <tgomez-f@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/20 18:16:11 by alamjada          #+#    #+#             */
-/*   Updated: 2026/06/22 18:28:47 by alamjada         ###   ########.fr       */
+/*   Updated: 2026/06/24 10:33:39 by tgomez-f         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -55,4 +55,5 @@ public:
   void setResponse(std::string &resp);
 	void setPid(pid_t pid) { _pid = pid; }
 	void appendToBufferCgi(char *msg, int n) { _buffer_cgi.append(msg, n); }
+  void  process(const std::vector<std::string>& ls);
 };

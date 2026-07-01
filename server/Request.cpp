@@ -32,6 +32,39 @@ void Request::parseRequest(const std::string &raw_request) {
   size_t first_line_pos = before_body.find("\r\n");
   parseRequestLine(before_body.substr(0, first_line_pos));
 
+<<<<<<< totoResponse
+    std::string headers_str = before_body.substr(first_line_pos + 2);
+    size_t pos = 0;
+    while ((pos = headers_str.find("\r\n")) != std::string::npos)
+        headers_str.erase(pos, 1); // Enlève le \r
+    
+    std::istringstream issh(headers_str);
+    std::string line;
+    while (getline(issh, line))
+    {
+        if (line.empty())
+            continue;    
+        size_t pos = line.find(":");
+        if (pos == std::string::npos)
+            continue;  // Skip si pas de colon
+        
+        std::string key = trim(line.substr(0, pos));
+        std::string value = trim(line.substr(pos + 1));
+
+        if (!key.empty())
+            headers[key] = value;
+    }
+    if (headers.count("Content-Length"))
+    {
+        size_t len = std::atoi(headers["Content-Length"].c_str());
+        if (len != body.size())
+            throw std::runtime_error("400");
+    }
+    if (!body.empty() && !headers.count("Content-Length"))
+        throw std::runtime_error("411"); // Length Required
+    if (isCGI())
+        parseCgi_env();
+=======
   std::string headers_str = before_body.substr(first_line_pos + 2);
   size_t pos = 0;
   while ((pos = headers_str.find("\r\n")) != std::string::npos)
@@ -60,6 +93,7 @@ void Request::parseRequest(const std::string &raw_request) {
     throw std::runtime_error("411");
   if (isCGI())
     parseCgi_env();
+>>>>>>> main
 }
 
 void Request::parseRequestLine(const std::string &first_line) {

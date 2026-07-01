@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Client.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
+/*   By: tgomez-f <tgomez-f@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/20 18:40:45 by alamjada          #+#    #+#             */
-/*   Updated: 2026/06/22 18:45:59 by alamjada         ###   ########.fr       */
+/*   Updated: 2026/06/24 11:29:43 by tgomez-f         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -95,4 +95,20 @@ bool Client::handleSend(void) {
   }
   // still have data
   return true;
+}
+
+void Client::process(const std::vector<std::string>& ls)
+{
+    try {
+        _request.parseRequest(_buffer_read);
+        Cgi cgi(ls, _request);
+        Response resp(200, cgi.run());
+        setResponse(resp.build());
+    }
+    catch (std::runtime_error& e) {
+        int code = std::atoi(e.what());
+        if (code == 0) code = 500; // si e.what() n'est pas un code HTTP
+        Response resp(code);
+        setResponse(resp.build());
+    }
 }

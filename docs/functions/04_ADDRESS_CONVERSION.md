@@ -118,6 +118,17 @@ void freeaddrinfo(struct addrinfo *res);
 
 **What it does:** converts a hostname or IP string + port/service string into one or more `sockaddr` structures, handling DNS resolution and address family selection for you. The modern, thread-safe, IPv4+IPv6-capable replacement for the old `gethostbyname()`.
 
+**The job in one sentence:** `getaddrinfo` is a translator that turns a human-friendly `host` + `service` (like `"example.com"` + `"http"`, or `"127.0.0.1"` + `"8080"`) into the ready-to-use binary socket address structures the kernel needs for `bind()`/`connect()`. It sits between the *words humans use* and the *numbers the network stack uses*, doing whatever work is needed to bridge them:
+
+- **Name resolution** — if `node` is a hostname (`"google.com"`), it performs the DNS lookup to find the IP(s); if it's already a numeric IP, it just parses it.
+- **Service resolution** — if `service` is a name (`"http"`), it looks up the port (80) in `/etc/services`; if it's `"8080"`, it parses it directly.
+- **Family abstraction** — it produces the right structure whether the result is IPv4 (`sockaddr_in`) or IPv6 (`sockaddr_in6`), so your code doesn't special-case them. This is the main modern reason it exists — it replaced the IPv4-only `inet_*`/`gethostbyname` functions.
+- **Packaging** — it fills in the family, the packed address bytes (network byte order), and the port inside a `struct addrinfo`, ready to pass straight to `socket()` + `bind()`/`connect()`.
+
+**Mental model — a concierge for the network stack:** you say *"I want to reach this place for this service,"* and it figures out the precise coordinates — looking things up if necessary — then hands you a filled-out form the kernel accepts without further questions. It may return **several** results (a linked list), e.g. a host with both IPv4 and IPv6 addresses, leaving you to pick or try them in turn.
+
+**For webserv, its job reduces to:** take the `host` and `port` from the config file and produce the `sockaddr` to bind the listening socket to. That's the entire reason it's on the allowed-functions list — the sanctioned bridge from *config text* to *bindable address*. As a side effect, if it can't produce a valid address, the config was bad — so it can double as IP validation (with `AI_NUMERICHOST` to skip DNS).
+
 **The result struct:**
 
 ```c

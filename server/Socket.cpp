@@ -1,75 +1,106 @@
 #include <cstring>
 #include <iostream>
+#include <sstream>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netdb.h>
+#include <unistd.h>
 #include <stdexcept>
 
 #include "Socket.hpp"
 #include "utils.hpp"
 
-Socket::Socket(void) { std::cout << "Default constructor called" << std::endl; }
+Socket::Socket(void): _host("0.0.0.0"), _port(0) { std::memset(&_addr, 0, sizeof(sockaddr_in)); }
 
-Socket::Socket(std::string name): _name(name) {
-    std::cout << "Name constructor called" << std::endl;
+Socket::Socket(std::string name): _name(name), _host("0.0.0.0"), _port(0) {
+    std::memset(&_addr, 0, sizeof(sockaddr_in));
 }
 
 Socket::Socket(const Socket &src) {
-  std::cout << "Copy constructor called" << std::endl;
   *this = src;
 }
 
 Socket &Socket::operator=(const Socket &other) {
-  std::cout << "Copy assignment operator called" << std::endl;
   if (this != &other) {
     _name = other._name;
+    _host = other._host;
+    _port = other._port;
     _listen_fd = other._listen_fd;
     _addr = other._addr;
   }
   return (*this);
 }
 
-Socket::~Socket() { std::cout << "Destructor called" << std::endl; }
+Socket::~Socket() {}
 
 void Socket::setSocket(int port) {
-  int ret = 0;
-  int yes = 1;
+    int ret = 0;
+    int yes = 1;
+    struct addrinfo hints;
+    struct addrinfo *res = NULL;
 
-    // ALLOCATING THE SOCKET FOR THE LISTENING FD
-    _listen_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (_listen_fd < 0)	
+    _port = port;
+
+    // RESOLVING host + port INTO A sockaddr WE CAN bind()
+    std::memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;                       // IPv4 only → res->ai_addr is a sockaddr_in
+    hints.ai_socktype = SOCK_STREAM;                 // TCP
+    hints.ai_flags = AI_PASSIVE | AI_NUMERICHOST;    // for bind(); host must be a numeric IP (no DNS)
+
+    std::ostringstream oss;
+    oss << port;
+    std::string port_str = oss.str();
+
+    const char *node = _host.empty() ? NULL : _host.c_str();
+
+    ret = getaddrinfo(node, port_str.c_str(), &hints, &res);
+    if (ret != 0)
+        throw std::runtime_error(std::string("getaddrinfo: ") + gai_strerror(ret));
+
+    // ALLOCATING THE SOCKET FOR THE LISTENING FD (using what getaddrinfo resolved)
+    _listen_fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    if (_listen_fd < 0) {
+        freeaddrinfo(res);
         throw std::runtime_error("Listening socket didn't initialize properly");
-    else
-        std::cout << "LISTENING SOCKET " << _listen_fd << " IS OPERATIONNAL";
+    }
+    std::cout << "LISTENING SOCKET " << _listen_fd << " IS OPERATIONNAL" << endofline;
 
     // SETTING OPTIONS TO LISTENING SOCKET
     ret = setsockopt(_listen_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
-    if (ret != 0)
-        throw std::runtime_error("Listening socket didn't set properly");
-
-    // SETTING UP ADDRESS STRUCTURE
-    memset(&_addr, 0, sizeof(sockaddr_in));
-    _addr.sin_family = AF_INET;
-    _addr.sin_port = htons(port);
-    _addr.sin_addr.s_addr = INADDR_ANY;
-
-    // BINDING THE LISTENING SOCKET TO ADDRESS STRUCT
-    ret = bind(_listen_fd, reinterpret_cast<sockaddr *>(&_addr), sizeof(sockaddr));
     if (ret != 0) {
+        close(_listen_fd);
+        freeaddrinfo(res);
+        throw std::runtime_error("Listening socket didn't set properly");
+    }
+
+    // BINDING THE LISTENING SOCKET TO THE RESOLVED ADDRESS
+    ret = bind(_listen_fd, res->ai_addr, res->ai_addrlen);
+    if (ret != 0) {
+        close(_listen_fd);
+        freeaddrinfo(res);
         std::cout << "BINDING FAILURE\n\n" << std::endl;
         throw std::runtime_error("Binding failed.");
-    } else {
-        std::cout << "BINDING SUCCESS\n\n" << std::endl;
     }
+    std::cout << "BINDING SUCCESS\n\n" << std::endl;
+
+    // KEEP A COPY OF THE BOUND ADDRESS FOR printSocket()
+    std::memcpy(&_addr, res->ai_addr, res->ai_addrlen);
+    freeaddrinfo(res);
 
     // LISTENING TO THE SOCKET STREAM
     ret = listen(_listen_fd, BACK_LOG);
-    if (ret != 0)
-        std::cout << "Listening on FD " << _listen_fd << " failed miserably" << std::endl;
-    else
-        std::cout << "LISTENING SUCCESS on port : " << PORT << std::endl;
-	
+    if (ret != 0) {
+        close(_listen_fd);
+        throw std::runtime_error("Listening on socket failed");
+    }
+    std::cout << "LISTENING SUCCESS on port : " << port << std::endl;
 }
+
+void            Socket::setHost(std::string host) { _host = host; }
+void            Socket::setPort(int port) { _port = port; }
+std::string     Socket::getHost(void) const { return (_host); }
+int             Socket::getPort(void) const { return (_port); }
 
 int     Socket::getSocketFd(void) {
     return (_listen_fd);
@@ -77,6 +108,8 @@ int     Socket::getSocketFd(void) {
 
 void    Socket::printSocket(void) {
     std::cout << BOLD_GREEN << "{==== SOCKET " << _name << " ====} " << endofline;
+    std::cout << "Config host: " << _host << std::endl;                // parsed from listen
+    std::cout << "Config port: " << _port << std::endl;                // parsed from listen
     std::cout << "Family: " << _addr.sin_family << std::endl;          // 2 = AF_INET
     std::cout << "Port:   " << ntohs(_addr.sin_port) << std::endl;     // ntohs! → 8080
     std::cout << "IP:     " << inet_ntoa(_addr.sin_addr) << std::endl; // "0.0.0.0"
