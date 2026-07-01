@@ -24,13 +24,14 @@ SERVER_SRC = \
     $(SRC_DIR)/Location.cpp \
     $(SRC_DIR)/Socket.cpp \
     $(SRC_DIR)/Request.cpp \
+		$(SRC_DIR)/Response.cpp \
     $(CONFIG_DIR)/Lexer.cpp \
     $(CONFIG_DIR)/Token.cpp \
     $(CONFIG_DIR)/Parser.cpp \
     $(CONFIG_DIR)/configutils.cpp \
     $(CGI_DIR)/Cgi.cpp \
     $(CLIENT_DIR)/Client.cpp \
-    $(UTILS_DIR)/utils.cpp \
+    $(UTILS_DIR)/utils.cpp 
 
 OBJDIR     = objs
 SERVER_OBJ = $(patsubst %.cpp,$(OBJDIR)/%.o,$(SERVER_SRC))

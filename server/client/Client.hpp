@@ -11,10 +11,12 @@
 /* ************************************************************************** */
 
 #pragma once
+
 #include "../Request.hpp"
 #include <sched.h>
 #include <string>
 #include <sys/poll.h>
+#include <vector>
 
 enum e_state_client { READING, WRITTING, DONE, READING_CGI };
 
@@ -32,6 +34,7 @@ private:
 public:
   Client(void);
   Client(int fd);
+	Client(const Client &src);
   Client(int fd, Request req);
   ~Client(void);
 
@@ -40,6 +43,8 @@ public:
   bool handleRecv(void);
   bool isRequestCompleted(void);
   bool handleSend(void);
+
+	Client *clone(void);
 
   pollfd getPollfd(void);
   e_state_client getStatus(void);
@@ -55,5 +60,5 @@ public:
   void setResponse(std::string &resp);
 	void setPid(pid_t pid) { _pid = pid; }
 	void appendToBufferCgi(char *msg, int n) { _buffer_cgi.append(msg, n); }
-  void  process(const std::vector<std::string>& ls);
+  void  process(void);
 };

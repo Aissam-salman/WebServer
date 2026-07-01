@@ -2,12 +2,13 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdlib>
+#include <iostream>
 #include <sstream>
 #include <stdexcept>
-#include <iostream>
 
 Request::Request(const std::string &server_port, const std::string &client_ip,
-                 const std::string &client_port, const std::string &document_root)
+                 const std::string &client_port,
+                 const std::string &document_root)
     : _server_port(server_port), _client_ip(client_ip),
       _client_port(client_port), _document_root(document_root) {}
 
@@ -30,56 +31,29 @@ void Request::parseRequest(const std::string &raw_request) {
   body = raw_request.substr(separator + 4);
 
   size_t first_line_pos = before_body.find("\r\n");
-  parseRequestLine(before_body.substr(0, first_line_pos));
+	try { 
+		parseRequestLine(before_body.substr(0, first_line_pos));
+	} catch (std::runtime_error &e) {
+		throw std::runtime_error(e);
+	}
 
-<<<<<<< totoResponse
-    std::string headers_str = before_body.substr(first_line_pos + 2);
-    size_t pos = 0;
-    while ((pos = headers_str.find("\r\n")) != std::string::npos)
-        headers_str.erase(pos, 1); // Enlève le \r
-    
-    std::istringstream issh(headers_str);
-    std::string line;
-    while (getline(issh, line))
-    {
-        if (line.empty())
-            continue;    
-        size_t pos = line.find(":");
-        if (pos == std::string::npos)
-            continue;  // Skip si pas de colon
-        
-        std::string key = trim(line.substr(0, pos));
-        std::string value = trim(line.substr(pos + 1));
-
-        if (!key.empty())
-            headers[key] = value;
-    }
-    if (headers.count("Content-Length"))
-    {
-        size_t len = std::atoi(headers["Content-Length"].c_str());
-        if (len != body.size())
-            throw std::runtime_error("400");
-    }
-    if (!body.empty() && !headers.count("Content-Length"))
-        throw std::runtime_error("411"); // Length Required
-    if (isCGI())
-        parseCgi_env();
-=======
   std::string headers_str = before_body.substr(first_line_pos + 2);
   size_t pos = 0;
   while ((pos = headers_str.find("\r\n")) != std::string::npos)
-    headers_str.erase(pos, 1);
+    headers_str.erase(pos, 1); // Enlève le \r
 
   std::istringstream issh(headers_str);
   std::string line;
   while (getline(issh, line)) {
     if (line.empty())
       continue;
-    size_t colon = line.find(":");
-    if (colon == std::string::npos)
-      continue;
-    std::string key = trim(line.substr(0, colon));
-    std::string value = trim(line.substr(colon + 1));
+    size_t pose = line.find(":");
+    if (pose == std::string::npos)
+      continue; // Skip si pas de colon
+
+    std::string key = trim(line.substr(0, pos));
+    std::string value = trim(line.substr(pos + 1));
+
     if (!key.empty())
       headers[key] = value;
   }
@@ -89,11 +63,11 @@ void Request::parseRequest(const std::string &raw_request) {
     if (len != body.size())
       throw std::runtime_error("400");
   }
-  if (body.length() > 1 && !headers.count("Content-Length"))
-    throw std::runtime_error("411");
+  if (!body.empty() && !headers.count("Content-Length"))
+    throw std::runtime_error("411"); // Length Required
   if (isCGI())
     parseCgi_env();
->>>>>>> main
+
 }
 
 void Request::parseRequestLine(const std::string &first_line) {
@@ -106,7 +80,8 @@ void Request::parseRequestLine(const std::string &first_line) {
   std::string extra;
   if (iss >> extra)
     throw std::invalid_argument("400");
-  if (method != "GET" && method != "POST" && method != "DELETE" && method != "PUT")
+  if (method != "GET" && method != "POST" && method != "DELETE" &&
+      method != "PUT")
     throw std::runtime_error("405");
   if (http_version != "HTTP/1.1" && http_version != "HTTP/1.0")
     throw std::runtime_error("505");
@@ -123,7 +98,8 @@ void Request::parseCgi_env() {
 
   if (headers.count("Host"))
     cgi_env["SERVER_NAME"] = headers.at("Host");
-  cgi_env["CONTENT_LENGTH"] = headers.count("Content-Length") ? headers.at("Content-Length") : "0";
+  cgi_env["CONTENT_LENGTH"] =
+      headers.count("Content-Length") ? headers.at("Content-Length") : "0";
   if (headers.count("Content-Type"))
     cgi_env["CONTENT_TYPE"] = headers.at("Content-Type");
 
@@ -134,9 +110,10 @@ void Request::parseCgi_env() {
 
   if (query_pos != std::string::npos) {
     size_t space_pos = resource.find_first_of(" \r\t\n", query_pos);
-    cgi_env["QUERY_STRING"] = (space_pos != std::string::npos)
-        ? resource.substr(query_pos + 1, space_pos - query_pos - 1)
-        : resource.substr(query_pos + 1);
+    cgi_env["QUERY_STRING"] =
+        (space_pos != std::string::npos)
+            ? resource.substr(query_pos + 1, space_pos - query_pos - 1)
+            : resource.substr(query_pos + 1);
   } else {
     cgi_env["QUERY_STRING"] = "";
   }
@@ -145,8 +122,8 @@ void Request::parseCgi_env() {
   // cgi_env["PATH_INFO"] = "";
   // size_t pos = 7;
   // while ((pos = path.find("/", pos + 1)) != std::string::npos) {
-  //   std::string s = path.substr(pos + 1, path.find("/", pos + 1) - (pos + 1));
-  //   if (s.find(".") != std::string::npos) {
+  //   std::string s = path.substr(pos + 1, path.find("/", pos + 1) - (pos +
+  //   1)); if (s.find(".") != std::string::npos) {
   //     cgi_env["SCRIPT_NAME"] = path.substr(0, pos + 1 + s.length());
   //     cgi_env["PATH_INFO"] = path.substr(pos + 1 + s.length());
   //     break;
@@ -163,7 +140,7 @@ void Request::parseCgi_env() {
       cgi_env["SCRIPT_NAME"] = path;
       cgi_env["PATH_INFO"] = "";
     }
-    //INFO: integrate php cgi
+    // INFO: integrate php cgi
   } else if ((extension_pos = path.find(".php")) != std::string::npos) {
     size_t end = path.find("/", extension_pos);
     if (end != std::string::npos) {

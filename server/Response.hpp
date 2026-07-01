@@ -14,5 +14,5 @@ public:
 
     Response(int code);
     Response(int code, const std::string& cgi_output);
-    std::string& build() const; // construit la reponse final HTTP
+    std::string build(); // construit la reponse final HTTP
 };

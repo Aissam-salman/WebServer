@@ -1,4 +1,10 @@
 #include "Response.hpp"
+#include <cstdlib>
+#include <ctime>
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <map>
 
 Response:: Response(int code, const std::string& cgi_output) : _status_code(code), _content_type("text/html")
 {
@@ -29,8 +35,8 @@ void Response::parseCgi_output(const std::string& raw)
     std::istringstream iss(cgi_headers);
     std::string line;
     while (std::getline(iss, line)) {
-        if (!line.empty() && line.back() == '\r')
-            line.pop_back();
+        if (!line.empty() && line.size() - 1 == '\r')
+            line.erase(line.size() - 1);
         size_t colon = line.find(':');
         if (colon == std::string::npos)
             continue;
@@ -73,7 +79,7 @@ Response::Response(int code) : _status_code(code), _content_type("text/html")
     _body = body.str();
 }
 
-std::string& Response::build() const
+std::string Response::build()
 {
     std::map<int, std::string> reasons;
     reasons[200] = "OK";
@@ -92,12 +98,17 @@ std::string& Response::build() const
     oss << "HTTP/1.1 " << _status_code << " " << reason << "\r\n";
     oss << "Content-Type: "   << _content_type << "\r\n";
     oss << "Content-Length: " << _body.size() << "\r\n";
+
+		std::map< std::string , std::string >::const_iterator it = _headers.begin();
+		std::map< std::string , std::string >::const_iterator ite = _headers.end();
     
-    for (auto it = _headers.begin(); it != _headers.end(); ++it)
+    for (; it != ite; ++it)
         oss << it->first << ": " << it->second << "\r\n";
     
     oss << "\r\n";
     oss << _body;
-    std::string resp = oss.str();
-    return resp;
+
+		std::cerr << "[DEBUG] body: " << _body << std::endl;
+
+    return oss.str();
 }

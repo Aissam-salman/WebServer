@@ -11,12 +11,17 @@
 /* ************************************************************************** */
 
 #include "Client.hpp"
+#include "Cgi.hpp"
 #include "Request.hpp"
+#include "Response.hpp"
 #include "utils.hpp"
+#include <cstdlib>
+#include <iostream>
 #include <stdexcept>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <vector>
 
 Client::Client(void) : _request("8080", "0", "0000", "www") {}
 
@@ -33,6 +38,8 @@ Client::Client(int fd, Request rq)
   _poll_listen.events = POLLIN;
   _poll_listen.revents = 0;
 }
+
+Client::Client(const Client &src) : _request(src._request) { *this = src; }
 
 Client::~Client(void) {}
 
@@ -97,18 +104,23 @@ bool Client::handleSend(void) {
   return true;
 }
 
-void Client::process(const std::vector<std::string>& ls)
-{
-    try {
-        _request.parseRequest(_buffer_read);
-        Cgi cgi(ls, _request);
-        Response resp(200, cgi.run());
-        setResponse(resp.build());
-    }
-    catch (std::runtime_error& e) {
-        int code = std::atoi(e.what());
-        if (code == 0) code = 500; // si e.what() n'est pas un code HTTP
-        Response resp(code);
-        setResponse(resp.build());
-    }
+Client *Client::clone(void) { return new Client(*this); }
+
+void Client::process(void) {
+  try {
+		std::cerr << "[DEBUG]" << std::endl;
+    _request.parseRequest(_buffer_read);
+    Response resp(200);
+    std::string bu = resp.build();
+    setResponse(bu);
+  } catch (std::runtime_error &e) {
+    int code = std::atoi(e.what());
+    if (code == 0)
+      code = 500; // si e.what() n'est pas un code HTTP
+    Response resp(code);
+    std::string bu = resp.build();
+    setResponse(bu);
+  } catch (...) {
+		std::cerr << "process client" << std::endl;
+	}
 }

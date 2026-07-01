@@ -40,7 +40,7 @@ int main(int argc, char **argv) {
 		for (size_t i = 0; i < servers_vector.size(); i++) {
 			servers_vector[i].printServer();
 		}
-		// servers_vector[0].run();
+		servers_vector[0].run();
   }
 	catch (runtime_error &e) {
 		std::cerr << RED << e.what() << endofline;
