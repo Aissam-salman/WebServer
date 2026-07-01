@@ -26,10 +26,12 @@ private:
   size_t _offset_send;
 
 public:
-  Request _request;
   Client(void);
   Client(int fd);
+  Client(int fd, Request req);
   ~Client(void);
+
+  Request _request;
 
   pollfd getPollfd(void);
   bool handleRecv(void);

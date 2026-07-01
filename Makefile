@@ -1,10 +1,11 @@
-SERVER   = WebServ
+NAME   = WebServ
 
 CXX      = c++
 CXXFLAGS = -Wall -Wextra -Werror -Wswitch \
            -Wpedantic -Wshadow -Wnon-virtual-dtor -Wold-style-cast \
            -std=c++98 -MMD -MP \
-           -I server  -I client -I utils -I server/cgi
+           -I server  -I utils  -I server/config -I server/cgi -I server/client
+
 LDFLAGS  =
 
 # ============== SRC-FILES ===================
@@ -15,6 +16,8 @@ SERVER_SRC = \
     server/Socket.cpp \
 		server/config/Lexer.cpp \
     server/client/Client.cpp \
+		server/config/Token.cpp \
+    server/config/configutils.cpp \
 		server/Request.cpp \
 		server/cgi/Cgi.cpp \
     utils/utils.cpp \
@@ -28,7 +31,7 @@ DEBUG_FLAGS = -g3 -O0
 ASAN_FLAGS  = -fsanitize=address   -fno-omit-frame-pointer
 UBSAN_FLAGS = -fsanitize=undefined -fno-omit-frame-pointer
 
-all: server
+all: server 
 
 # mkdir -p creates the per-subdir bucket on demand
 $(OBJDIR)/%.o: %.cpp
@@ -36,7 +39,12 @@ $(OBJDIR)/%.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 server: $(SERVER_OBJ)
-	$(CXX) $(CXXFLAGS) $^ -o $(SERVER) $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) $^ -o $(NAME) $(LDFLAGS)
+
+server_conf: $(NAME) 
+		./$(NAME) webserv.conf
+# client: $(CLIENT_OBJ)
+# 	$(CXX) $(CXXFLAGS) $^ -o $(CLIENT) $(LDFLAGS)
 
 -include $(DEPS)
 
@@ -44,7 +52,7 @@ clean:
 	rm -rf $(OBJDIR)
 
 fclean: clean
-	rm -f $(SERVER) $(CLIENT)
+	rm -f $(NAME) 
 
 re: fclean all
 
@@ -55,7 +63,7 @@ debug: re
 asan: CXXFLAGS += $(DEBUG_FLAGS) $(ASAN_FLAGS) $(UBSAN_FLAGS)
 asan: LDFLAGS  += $(ASAN_FLAGS) $(UBSAN_FLAGS)
 asan: re
-	@echo "→ run ./$(SERVER) or ./$(CLIENT) directly; ASan reports at exit"
+	@echo "→ run ./$(NAME) directly; ASan reports at exit"
 
 leaks: debug
 	@if [ "$$(uname)" = "Darwin" ]; then \
@@ -73,26 +81,24 @@ watch-server:
 		echo "fswatch not found — install with: brew install fswatch"; \
 		exit 1; \
 	}
-	@$(MAKE) --no-print-directory server && echo "── run ──" && ./$(SERVER); true
+	@$(MAKE) --no-print-directory server && echo "── run ──" && ./$(NAME); true
 	@echo "watching server files — Ctrl-C to stop"
 	@fswatch -o $(SERVER_SRC) $(wildcard server/*.hpp) $(wildcard utils/*.hpp) | while read -r _; do \
 		clear; \
 		printf '↻ %s — rebuilding\n' "$$(date +%H:%M:%S)"; \
-		$(MAKE) --no-print-directory server && echo "── run ──" && ./$(SERVER); true; \
+		$(MAKE) --no-print-directory server && echo "── run ──" && ./$(NAME); true; \
 	done
 
 help:
 	@echo "Targets:"
-	@echo "  make               build both $(SERVER) and $(CLIENT)"
-	@echo "  make server        build $(SERVER) only"
-	@echo "  make client        build $(CLIENT) only"
+	@echo "  make               build $(NAME)
+	@echo "  make server_conf   build $(NAME) with working webserv.conf
 	@echo "  make re            rebuild both from scratch"
 	@echo "  make clean         remove objects"
 	@echo "  make fclean        remove objects + binaries"
 	@echo "  make debug         rebuild with -g3 -O0"
 	@echo "  make asan          rebuild with AddressSanitizer + UBSan"
 	@echo "  make leaks         rebuild debug, then run leaks (mac) / valgrind (linux)"
-	@echo "  make watch-server  auto-rebuild server on change (needs fswatch)"
-	@echo "  make watch-client  auto-rebuild client on change (needs fswatch)"
+	@echo "  make watch  auto-rebuild server on change (needs fswatch)"
 
-.PHONY: all server client clean fclean re debug asan leaks watch-server watch-client help
+.PHONY: all clean fclean re debug asan leaks watch server_conf help 

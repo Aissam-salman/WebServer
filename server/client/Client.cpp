@@ -11,16 +11,24 @@
 /* ************************************************************************** */
 
 #include "Client.hpp"
-#include "Response.hpp"
-#include "Cgi.hpp"
+#include "Request.hpp"
 #include "utils.hpp"
 #include <stdexcept>
+#include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
 
-Client::Client(void) {}
+Client::Client(void) : _request("8080", "0", "0000", "www") {}
 
-Client::Client(int fd): _status(READING), _offset_send(0), _request(){
+Client::Client(int fd)
+    : _status(READING), _offset_send(0), _request("8080", "0", "0000", "www") {
+  _poll_listen.fd = fd;
+  _poll_listen.events = POLLIN;
+  _poll_listen.revents = 0;
+}
+
+Client::Client(int fd, Request rq)
+    : _status(READING), _offset_send(0), _request(rq) {
   _poll_listen.fd = fd;
   _poll_listen.events = POLLIN;
   _poll_listen.revents = 0;
@@ -73,14 +81,15 @@ e_state_client Client::getStatus(void) { return _status; }
 Request Client::getRequest(void) { return _request; }
 
 bool Client::handleSend(void) {
-  ssize_t n = send(_poll_listen.fd, _buffer_send.c_str() + _offset_send, _buffer_send.size() - _offset_send, 0);
+  ssize_t n = send(_poll_listen.fd, _buffer_send.c_str() + _offset_send,
+                   _buffer_send.size() - _offset_send, 0);
 
   if (n < 0)
     throw std::runtime_error("send fail.");
   _offset_send += n;
 
-  // all is send ?? 
-  if (_offset_send >= _buffer_send.size()){
+  // all is send ??
+  if (_offset_send >= _buffer_send.size()) {
     _status = DONE;
     return false;
   }
