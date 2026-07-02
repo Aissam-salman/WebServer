@@ -109,7 +109,5 @@ std::string Response::build()
     oss << "\r\n";
     oss << _body;
 
-		std::cerr << "[DEBUG] body: " << _body << std::endl;
-
     return oss.str();
 }

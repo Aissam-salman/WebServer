@@ -31,11 +31,11 @@ void Request::parseRequest(const std::string &raw_request) {
   body = raw_request.substr(separator + 4);
 
   size_t first_line_pos = before_body.find("\r\n");
-	try { 
-		parseRequestLine(before_body.substr(0, first_line_pos));
-	} catch (std::runtime_error &e) {
-		throw std::runtime_error(e);
-	}
+  try {
+    parseRequestLine(before_body.substr(0, first_line_pos));
+  } catch (std::runtime_error &e) {
+    throw std::runtime_error(e);
+  }
 
   std::string headers_str = before_body.substr(first_line_pos + 2);
   size_t pos = 0;
@@ -63,11 +63,10 @@ void Request::parseRequest(const std::string &raw_request) {
     if (len != body.size())
       throw std::runtime_error("400");
   }
-  if (!body.empty() && !headers.count("Content-Length"))
+  if (body.length() > 1 && !headers.count("Content-Length"))
     throw std::runtime_error("411"); // Length Required
   if (isCGI())
     parseCgi_env();
-
 }
 
 void Request::parseRequestLine(const std::string &first_line) {
@@ -89,7 +88,7 @@ void Request::parseRequestLine(const std::string &first_line) {
 
 void Request::parseCgi_env() {
   cgi_env["REQUEST_METHOD"] = method;
-	
+
   cgi_env["SERVER_PROTOCOL"] = http_version;
   cgi_env["GATEWAY_INTERFACE"] = "CGI/1.1";
   cgi_env["SERVER_SOFTWARE"] = "webserv/1.0";
@@ -154,11 +153,4 @@ void Request::parseCgi_env() {
   }
 }
 
-void Request::clear() {
-  method.clear();
-  resource.clear();
-  http_version.clear();
-  headers.clear();
-  body.clear();
-  cgi_env.clear();
-}
+void Request::clear() {}

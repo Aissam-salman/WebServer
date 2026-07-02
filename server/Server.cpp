@@ -1,6 +1,6 @@
 #include "Server.hpp"
-#include "Response.hpp"
 #include "Cgi.hpp"
+#include "Response.hpp"
 #include "config/configutils.hpp"
 #include "utils.hpp"
 #include <csignal>
@@ -98,7 +98,7 @@ void Server::run(void) {
   Socket socket1("SocketTest");
 
   socket1.setSocket(PORT);
-  _sockets_vector.push_back(socket1);
+  // _sockets_vector.push_back(socket1);
   std::vector<std::string> ls;
   ls.push_back("python");
   ls.push_back("php");
@@ -107,15 +107,22 @@ void Server::run(void) {
   std::vector<pollfd> poll_fds;
   std::map<int, int> _pipe_to_client;
 
-  std::vector<Socket>::iterator it = _sockets_vector.begin();
-  std::vector<Socket>::iterator ite = _sockets_vector.end();
-  for (; it != ite; it++) {
-    pollfd pfd;
-    pfd.fd = (*it).getSocketFd();
-    pfd.events = POLLIN;
-    pfd.revents = 0;
-    poll_fds.push_back(pfd);
-  }
+  // std::vector<Socket>::iterator it = _sockets_vector.begin();
+  // std::vector<Socket>::iterator ite = _sockets_vector.end();
+  // for (; it != ite; it++) {
+  //   pollfd pfd;
+  //   pfd.fd = s.getSocketFd();
+  //   pfd.events = POLLIN;
+  //   pfd.revents = 0;
+  //   poll_fds.push_back(pfd);
+  // }
+  //
+
+  pollfd pol;
+  pol.fd = socket1.getSocketFd();
+  pol.events = POLLIN;
+  pol.revents = 0;
+  poll_fds.push_back(pol);
 
   while (_running) {
     int ret = poll(&poll_fds[0], poll_fds.size(), TIMEOUT);
@@ -152,6 +159,10 @@ void Server::run(void) {
         // new client
         if (poll_fds[i].revents & POLLIN) {
           int client_fd = accept(fd, NULL, NULL);
+
+          if (client_fd < 0)
+            continue;
+
           _clients[client_fd] =
               Client(client_fd, Request("8080", "0.0.0.0", "0000", "www"));
           poll_fds.push_back(_clients[client_fd].getPollfd());
@@ -166,32 +177,30 @@ void Server::run(void) {
             _clients.erase(fd);
             poll_fds.erase(poll_fds.begin() + i--);
           } else if (client.getStatus() == WRITTING) {
-            std::string resp;
-            if (client._request.isCGI()) {
+            try {
               client._request.parseRequest(client.getBufferRead());
-              Cgi cgi(ls, &client);
-              cgi.run();
-              pollfd pfd;
-              pfd.fd = client.getCgiPipefd();
-              pfd.events = POLLIN;
-              poll_fds.push_back(pfd);
-              _pipe_to_client[client.getCgiPipefd()] = fd;
-            } else {
-              try {
+              if (client._request.isCGI()) {
+                Cgi cgi(ls, &client);
+                cgi.run();
+                pollfd pfd;
+                pfd.fd = client.getCgiPipefd();
+                pfd.events = POLLIN;
+                poll_fds.push_back(pfd);
+                _pipe_to_client[client.getCgiPipefd()] = fd;
+              } else {
                 client._request.parseRequest(client.getBufferRead());
                 Response response(200);
                 std::string bu = response.build();
                 client.setResponse(bu);
-              } catch (std::runtime_error &e) {
-                int code = std::atoi(e.what());
-                if (code == 0)
-                  code = 500; // si e.what() n'est pas un code HTTP
-                Response response(code);
-                std::string bu = response.build();
-                client.setResponse(bu);
-              } catch (...) {
-                std::cerr << "process client" << std::endl;
+                poll_fds[i].events = POLLOUT;
               }
+            } catch (std::runtime_error &e) {
+              int code = std::atoi(e.what());
+              if (code == 0)
+                code = 500;
+              Response response(code);
+              std::string bu = response.build();
+              client.setResponse(bu);
               poll_fds[i].events = POLLOUT;
             }
           }
@@ -211,3 +220,4 @@ void Server::run(void) {
     }
   }
 }
+

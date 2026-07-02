@@ -24,6 +24,7 @@ private:
   Cgi(void);
 	int getContentLength(void);
 	std::vector<char *> createArg(void);
+	std::vector<char *> createEnvp(std::vector<std::string> &env_strings);
 	void childExec(int pipe_body[2], int pipe_resp[2], std::vector<char *> arg, std::vector<char *> envp);
 	void dadaExec(int pipe_body[2], int pipe_resp[2], pid_t pid);
 
