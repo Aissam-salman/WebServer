@@ -2,6 +2,7 @@
 objs/
 WebServ
 WebServ-client
+compile_commands.json
 
 # Debug / sanitizer artifacts
 *.dSYM/
