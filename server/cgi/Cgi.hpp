@@ -13,7 +13,6 @@
 #pragma once
 
 #include "Client.hpp"
-#include "Request.hpp"
 #include <string>
 #include <vector>
 
@@ -23,6 +22,10 @@ private:
   Client *_client;
 
   Cgi(void);
+	int getContentLength(void);
+	std::vector<char *> createArg(void);
+	void childExec(int pipe_body[2], int pipe_resp[2], std::vector<char *> arg, std::vector<char *> envp);
+	void dadaExec(int pipe_body[2], int pipe_resp[2], pid_t pid);
 
 public:
   Cgi(std::vector<std::string> ls, Client *client);
