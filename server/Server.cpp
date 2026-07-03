@@ -4,6 +4,7 @@
 #include "config/configutils.hpp"
 #include "utils.hpp"
 #include <csignal>
+#include <cstddef>
 #include <cstdlib>
 #include <iostream>
 #include <stdexcept>
@@ -20,7 +21,12 @@ Server::Server(void)
     : _name(""), _error_pages(initErrorPages()), _max_body_size(0) {}
 
 Server::Server(std::string name)
-    : _name(name), _error_pages(initErrorPages()), _max_body_size(-1) {}
+    : _name(name), _error_pages(initErrorPages()), _max_body_size(-1) {
+  signal(SIGINT, handle_sigint);
+  _languages_supported.push_back("python");
+  _languages_supported.push_back("php");
+}
+
 Server::Server(const Server &src)
     : _name(src._name), _sockets_vector(src._sockets_vector),
       _locations_vector(src._locations_vector), _error_pages(src._error_pages),
@@ -30,10 +36,12 @@ Server::~Server() {}
 
 // ==== GETTERS ====
 void Server::setMaxBodySize(long size) { _max_body_size = size; }
+
 void Server::setServerName(std::string name) { _name = name; }
 std::vector<Location> &Server::getServerLocationsVector(void) {
   return (_locations_vector);
 }
+
 std::string Server::getServerName(void) { return (_name); }
 
 std::vector<Location> &Server::getLocations(void) {
@@ -94,18 +102,10 @@ void Server::handle_sigint(int) {
   std::cerr << "SIGNAL RECEIVED" << std::endl;
 }
 
-void Server::run(void) {
+void Server::setupListeners(void) {
   Socket socket1("SocketTest");
-
   socket1.setSocket(PORT);
-  // _sockets_vector.push_back(socket1);
-  std::vector<std::string> ls;
-  ls.push_back("python");
-  ls.push_back("php");
-
-  signal(SIGINT, handle_sigint);
-  std::vector<pollfd> poll_fds;
-  std::map<int, int> _pipe_to_client;
+  _sockets_vector.push_back(socket1);
 
   // std::vector<Socket>::iterator it = _sockets_vector.begin();
   // std::vector<Socket>::iterator ite = _sockets_vector.end();
@@ -117,107 +117,133 @@ void Server::run(void) {
   //   poll_fds.push_back(pfd);
   // }
   //
-
   pollfd pol;
-  pol.fd = socket1.getSocketFd();
+  pol.fd = _sockets_vector.back().getSocketFd();
   pol.events = POLLIN;
   pol.revents = 0;
-  poll_fds.push_back(pol);
+  _poll_fds.push_back(pol);
+}
 
-  while (_running) {
-    int ret = poll(&poll_fds[0], poll_fds.size(), TIMEOUT);
-    if (ret == -1 && _running)
-      throw std::runtime_error("Poll failed miserably");
-    for (size_t i = 0; i < poll_fds.size(); i++) {
-      int fd = poll_fds[i].fd;
-      if (!poll_fds[i].revents)
-        continue;
-      if (_pipe_to_client.count(fd)) {
-        // from pipe_cgi non bloquant read
-        int client_fd = _pipe_to_client[fd];
-        Client &client = _clients[client_fd];
-        char buf[4096];
-        int n = read(fd, buf, sizeof(buf));
-        if (n > 0)
-          client.appendToBufferCgi(buf, n);
-        else if (n == 0) {
-          waitpid(client.getPid(), NULL, WNOHANG);
-          std::string resp = buildHttpResponse(client.getBufferCgi());
-          client.setResponse(resp);
-          client.setStatus(WRITTING);
-          close(fd);
-          _pipe_to_client.erase(fd);
-          poll_fds.erase(poll_fds.begin() + i--);
-          for (size_t j = 0; j < poll_fds.size(); j++) {
-            if (poll_fds[j].fd == client_fd) {
-              poll_fds[j].events = POLLOUT;
-              break;
-            }
-          }
-        }
-      } else if (_clients.count(fd) == 0) {
-        // new client
-        if (poll_fds[i].revents & POLLIN) {
-          int client_fd = accept(fd, NULL, NULL);
-
-          if (client_fd < 0)
-            continue;
-
-          _clients[client_fd] =
-              Client(client_fd, Request("8080", "0.0.0.0", "0000", "www"));
-          poll_fds.push_back(_clients[client_fd].getPollfd());
-        }
-      } else {
-        // already client
-        Client &client = _clients[fd];
-        if (poll_fds[i].revents & POLLIN) {
-          bool isHere = client.handleRecv();
-          if (!isHere) {
-            close(fd);
-            _clients.erase(fd);
-            poll_fds.erase(poll_fds.begin() + i--);
-          } else if (client.getStatus() == WRITTING) {
-            try {
-              client._request.parseRequest(client.getBufferRead());
-              if (client._request.isCGI()) {
-                Cgi cgi(ls, &client);
-                cgi.run();
-                pollfd pfd;
-                pfd.fd = client.getCgiPipefd();
-                pfd.events = POLLIN;
-                poll_fds.push_back(pfd);
-                _pipe_to_client[client.getCgiPipefd()] = fd;
-              } else {
-                client._request.parseRequest(client.getBufferRead());
-                Response response(200);
-                std::string bu = response.build();
-                client.setResponse(bu);
-                poll_fds[i].events = POLLOUT;
-              }
-            } catch (std::runtime_error &e) {
-              int code = std::atoi(e.what());
-              if (code == 0)
-                code = 500;
-              Response response(code);
-              std::string bu = response.build();
-              client.setResponse(bu);
-              poll_fds[i].events = POLLOUT;
-            }
-          }
-        } else if (poll_fds[i].revents & POLLOUT) {
-          bool isDone = client.handleSend();
-          if (!isDone) {
-            close(fd);
-            _clients.erase(fd);
-            poll_fds.erase(poll_fds.begin() + i--);
-          }
-        } else if (poll_fds[i].revents & (POLLHUP | POLLERR)) {
-          close(fd);
-          _clients.erase(fd);
-          poll_fds.erase(poll_fds.begin() + i--);
-        }
+void Server::readCgiPipe(size_t &i, int fd) {
+  int client_fd = _pipe_to_client[fd];
+  Client &client = _clients[client_fd];
+  char buf[4096];
+  int n = read(fd, buf, sizeof(buf));
+  if (n > 0) {
+    client.appendToBufferCgi(buf, n);
+  } else if (n == 0) {
+    waitpid(client.getPid(), NULL, WNOHANG);
+    std::string resp = buildHttpResponse(client.getBufferCgi());
+    client.setResponse(resp);
+    client.setStatus(WRITTING);
+    close(fd);
+    _pipe_to_client.erase(fd);
+    _poll_fds.erase(_poll_fds.begin() + i--);
+    for (size_t j = 0; j < _poll_fds.size(); j++) {
+      if (_poll_fds[j].fd == client_fd) {
+        _poll_fds[j].events = POLLOUT;
+        break;
       }
     }
   }
 }
 
+void Server::acceptNewClient(int listen_fd) {
+  // FIX: params request need dynamic value
+  _clients[listen_fd] =
+      Client(listen_fd, Request("8080", "0.0.0.0", "0000", "www"));
+  _poll_fds.push_back(_clients[listen_fd].getPollfd());
+}
+
+void Server::closeClient(size_t &i, int fd) {
+  close(fd);
+  _clients.erase(fd);
+  _poll_fds.erase(_poll_fds.begin() + i--);
+}
+
+void Server::clientRead(size_t &i, int fd) {
+  Client &client = _clients[fd];
+
+  bool isHere = client.handleRecv();
+  if (!isHere) {
+    closeClient(i, fd);
+  }
+
+  else if (client.getStatus() == WRITTING) {
+    try {
+      client._request.parseRequest(client.getBufferRead());
+      if (client._request.isCGI()) {
+        Cgi cgi(_languages_supported, &client);
+        cgi.run();
+        pollfd pfd;
+        pfd.fd = client.getCgiPipefd();
+        pfd.events = POLLIN;
+        _poll_fds.push_back(pfd);
+        _pipe_to_client[client.getCgiPipefd()] = fd;
+      } else {
+        client._request.parseRequest(client.getBufferRead());
+        Response response(200);
+        std::string bu = response.build();
+        client.setResponse(bu);
+        _poll_fds[i].events = POLLOUT;
+      }
+    } catch (std::runtime_error &e) {
+      int code = std::atoi(e.what());
+      if (code == 0)
+        code = 500;
+      Response response(code);
+      std::string bu = response.build();
+      client.setResponse(bu);
+      _poll_fds[i].events = POLLOUT;
+    }
+  }
+}
+
+void Server::clientWrite(size_t &i, int fd) {
+  Client &client = _clients[fd];
+  bool isDone = client.handleSend();
+  if (!isDone) {
+    closeClient(i, fd);
+  }
+}
+
+void Server::run(void) {
+  this->setupListeners();
+
+  while (_running) {
+
+    int ret = poll(&_poll_fds[0], _poll_fds.size(), TIMEOUT);
+    if (ret == -1 && _running)
+      throw std::runtime_error("Poll failed miserably");
+
+    for (size_t i = 0; i < _poll_fds.size(); i++) {
+      int fd = _poll_fds[i].fd;
+
+      if (!_poll_fds[i].revents)
+        continue;
+
+      if (_pipe_to_client.count(fd)) {
+        readCgiPipe(i, fd);
+      }
+
+      else if (_clients.count(fd) == 0) {
+        if (_poll_fds[i].revents & POLLIN) {
+          // add new client to poll
+          int client_fd = accept(fd, NULL, NULL);
+          if (client_fd < 0)
+            continue;
+          acceptNewClient(client_fd);
+        }
+      }
+      else {
+        if (_poll_fds[i].revents & POLLIN)
+          clientRead(i, fd);
+        else if (_poll_fds[i].revents & POLLOUT) {
+          clientWrite(i, fd);
+        } else if (_poll_fds[i].revents & (POLLHUP | POLLERR)) {
+          closeClient(i, fd);
+        }
+      }
+    }
+  }
+}
