@@ -161,40 +161,49 @@ void Server::closeClient(size_t &i, int fd) {
   _poll_fds.erase(_poll_fds.begin() + i--);
 }
 
+void Server::handleCgi(Client &client, int fd) {
+  Cgi cgi(_languages_supported, &client);
+  cgi.run();
+  pollfd pfd;
+  pfd.fd = client.getCgiPipefd();
+  pfd.events = POLLIN;
+  _poll_fds.push_back(pfd);
+  _pipe_to_client[client.getCgiPipefd()] = fd;
+}
+
+void Server::handleReq(Client &client, int i) {
+  client._request.parseRequest(client.getBufferRead());
+  Response response(200);
+  std::string bu = response.build();
+  client.setResponse(bu);
+  _poll_fds[i].events = POLLOUT;
+}
+
+void Server::responseError(std::runtime_error &e, int i, Client &client) {
+  int code = std::atoi(e.what());
+  if (code == 0)
+    code = 500;
+  Response response(code);
+  std::string bu = response.build();
+  client.setResponse(bu);
+  _poll_fds[i].events = POLLOUT;
+}
+
 void Server::clientRead(size_t &i, int fd) {
   Client &client = _clients[fd];
 
   bool isHere = client.handleRecv();
-  if (!isHere) {
+  if (!isHere)
     closeClient(i, fd);
-  }
-
   else if (client.getStatus() == WRITTING) {
     try {
       client._request.parseRequest(client.getBufferRead());
-      if (client._request.isCGI()) {
-        Cgi cgi(_languages_supported, &client);
-        cgi.run();
-        pollfd pfd;
-        pfd.fd = client.getCgiPipefd();
-        pfd.events = POLLIN;
-        _poll_fds.push_back(pfd);
-        _pipe_to_client[client.getCgiPipefd()] = fd;
-      } else {
-        client._request.parseRequest(client.getBufferRead());
-        Response response(200);
-        std::string bu = response.build();
-        client.setResponse(bu);
-        _poll_fds[i].events = POLLOUT;
-      }
+      if (client._request.isCGI())
+        handleCgi(client, fd);
+      else
+        handleReq(client, i);
     } catch (std::runtime_error &e) {
-      int code = std::atoi(e.what());
-      if (code == 0)
-        code = 500;
-      Response response(code);
-      std::string bu = response.build();
-      client.setResponse(bu);
-      _poll_fds[i].events = POLLOUT;
+      responseError(e, i, client);
     }
   }
 }
@@ -207,43 +216,41 @@ void Server::clientWrite(size_t &i, int fd) {
   }
 }
 
+void Server::loopPollFds(void) {
+  for (size_t i = 0; i < _poll_fds.size(); i++) {
+    int fd = _poll_fds[i].fd;
+
+    if (!_poll_fds[i].revents)
+      continue;
+
+    if (_pipe_to_client.count(fd)) {
+      readCgiPipe(i, fd);
+    } else if (_clients.count(fd) == 0) {
+      if (_poll_fds[i].revents & POLLIN) {
+        // add new client to poll
+        int client_fd = accept(fd, NULL, NULL);
+        if (client_fd < 0)
+          continue;
+        acceptNewClient(client_fd);
+      }
+    } else {
+      if (_poll_fds[i].revents & POLLIN)
+        clientRead(i, fd);
+      else if (_poll_fds[i].revents & POLLOUT) {
+        clientWrite(i, fd);
+      } else if (_poll_fds[i].revents & (POLLHUP | POLLERR)) {
+        closeClient(i, fd);
+      }
+    }
+  }
+}
+
 void Server::run(void) {
-  this->setupListeners();
-
+  setupListeners();
   while (_running) {
-
     int ret = poll(&_poll_fds[0], _poll_fds.size(), TIMEOUT);
     if (ret == -1 && _running)
       throw std::runtime_error("Poll failed miserably");
-
-    for (size_t i = 0; i < _poll_fds.size(); i++) {
-      int fd = _poll_fds[i].fd;
-
-      if (!_poll_fds[i].revents)
-        continue;
-
-      if (_pipe_to_client.count(fd)) {
-        readCgiPipe(i, fd);
-      }
-
-      else if (_clients.count(fd) == 0) {
-        if (_poll_fds[i].revents & POLLIN) {
-          // add new client to poll
-          int client_fd = accept(fd, NULL, NULL);
-          if (client_fd < 0)
-            continue;
-          acceptNewClient(client_fd);
-        }
-      }
-      else {
-        if (_poll_fds[i].revents & POLLIN)
-          clientRead(i, fd);
-        else if (_poll_fds[i].revents & POLLOUT) {
-          clientWrite(i, fd);
-        } else if (_poll_fds[i].revents & (POLLHUP | POLLERR)) {
-          closeClient(i, fd);
-        }
-      }
-    }
+    loopPollFds();
   }
 }

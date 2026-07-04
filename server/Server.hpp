@@ -6,6 +6,7 @@
 #include "client/Client.hpp"
 #include "utils.hpp"
 #include <map>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -31,6 +32,10 @@ private:
 	void clientRead(size_t &i, int fd);
 	void clientWrite(size_t &i, int fd);
 	void closeClient(size_t &i, int fd);
+	void handleCgi(Client & client, int fd);
+	void handleReq(Client &client, int i);
+	void responseError(std::runtime_error &e, int i, Client &client);
+	void loopPollFds(void);
 	
 
 public:
