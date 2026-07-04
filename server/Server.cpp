@@ -102,6 +102,9 @@ void Server::handle_sigint(int) {
   std::cerr << "SIGNAL RECEIVED" << std::endl;
 }
 
+/*
+ * Init Sockets, add to pollfd
+ */
 void Server::setupListeners(void) {
   Socket socket1("SocketTest");
   socket1.setSocket(PORT);
@@ -124,6 +127,18 @@ void Server::setupListeners(void) {
   _poll_fds.push_back(pol);
 }
 
+void Server::switchFdsToPollout(int client_fd) {
+  for (size_t j = 0; j < _poll_fds.size(); j++) {
+    if (_poll_fds[j].fd == client_fd) {
+      _poll_fds[j].events = POLLOUT;
+      break;
+    }
+  }
+}
+
+/*
+ * read pipe from execve stdout, and switch to POLLOUT to send response http
+ */
 void Server::readCgiPipe(size_t &i, int fd) {
   int client_fd = _pipe_to_client[fd];
   Client &client = _clients[client_fd];
@@ -136,18 +151,12 @@ void Server::readCgiPipe(size_t &i, int fd) {
     std::string resp = buildHttpResponse(client.getBufferCgi());
     client.setResponse(resp);
     client.setStatus(WRITTING);
-    close(fd);
-    _pipe_to_client.erase(fd);
-    _poll_fds.erase(_poll_fds.begin() + i--);
-    for (size_t j = 0; j < _poll_fds.size(); j++) {
-      if (_poll_fds[j].fd == client_fd) {
-        _poll_fds[j].events = POLLOUT;
-        break;
-      }
-    }
+    closeClient(i, fd);
+    switchFdsToPollout(client_fd);
   }
 }
 
+// create client class, and poll_fd for client and add to pollfds
 void Server::acceptNewClient(int listen_fd) {
   // FIX: params request need dynamic value
   _clients[listen_fd] =
@@ -161,6 +170,11 @@ void Server::closeClient(size_t &i, int fd) {
   _poll_fds.erase(_poll_fds.begin() + i--);
 }
 
+// send client to cgi execve, with request already parsed
+// and add to pollfds, 
+// i add to pipe_to_client to keep the stdout pipe of execve, for the response
+// from cgi script (non bloquant)
+// associate the pipe with client 
 void Server::handleCgi(Client &client, int fd) {
   Cgi cgi(_languages_supported, &client);
   cgi.run();
@@ -172,13 +186,13 @@ void Server::handleCgi(Client &client, int fd) {
 }
 
 void Server::handleReq(Client &client, int i) {
-  client._request.parseRequest(client.getBufferRead());
   Response response(200);
   std::string bu = response.build();
   client.setResponse(bu);
   _poll_fds[i].events = POLLOUT;
 }
 
+// if catch std::runtime_error in clientRead catch
 void Server::responseError(std::runtime_error &e, int i, Client &client) {
   int code = std::atoi(e.what());
   if (code == 0)

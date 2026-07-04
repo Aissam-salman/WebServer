@@ -36,6 +36,7 @@ private:
 	void handleReq(Client &client, int i);
 	void responseError(std::runtime_error &e, int i, Client &client);
 	void loopPollFds(void);
+	void switchFdsToPollout(int client_fd);
 	
 
 public:
