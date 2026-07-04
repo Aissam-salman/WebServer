@@ -6,7 +6,7 @@
 /*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/07/01 12:05:10 by alamjada          #+#    #+#             */
-/*   Updated: 2026/07/01 12:05:34 by alamjada         ###   ########.fr       */
+/*   Updated: 2026/07/04 02:59:33 by alamjada         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,6 +28,7 @@ Cgi::Cgi(std::vector<std::string> ls, Client *client)
 
 Cgi::~Cgi(void) {}
 
+// Environment variable needed by cgi convention
 std::vector<char *> Cgi::createEnvp(std::vector<std::string> &env_strings) {
   mapConstIter it = _client->_request.getCgi_env().begin();
   mapConstIter ite = _client->_request.getCgi_env().end();
@@ -66,6 +67,9 @@ pid_t pipe_and_fork(int pipe_body[2], int pipe_resp[2]) {
     logError(err);
     throw std::runtime_error(err);
   }
+  //FIX:
+  // si le deuxième pipe() échoue, le premier pipe reste ouvert (fds non fermés)
+  // avant de lever l'exception. Pareil si fork() échoue. Sur un serveur qui tourne longtemps, qu'est-ce que ça implique ?
   if (pipe(pipe_resp) == -1) {
     std::string err = std::string("pipe: ").append(strerror(errno));
     logError(err);
@@ -91,7 +95,7 @@ void Cgi::childExec(int pipe_body[2], int pipe_resp[2], std::vector<char *> arg,
   close(pipe_resp[1]);
   std::string path = _client->_request.getCgi_env().at("SCRIPT_FILENAME");
   execve(path.c_str(), arg.data(), envp.data());
-  std::string err = std::string("excve: ").append(strerror(errno));
+  std::string err = std::string("execve: ").append(strerror(errno));
   logError(err);
   _exit(1);
 }
@@ -100,6 +104,11 @@ void Cgi::dadaExec(int pipe_body[2], int pipe_resp[2], pid_t pid) {
   close(pipe_body[0]);
   close(pipe_resp[1]);
   int content_length = getContentLength();
+  //WARN:
+// write(pipe_body[1], ..., content_length) est appelé sans vérifier la valeur de retour, 
+  // et surtout de façon synchrone dans le processus parent (celui qui fait tourner la boucle poll). 
+  // Une pipe a un buffer limité (~64KB sur Linux) : si le body dépasse cette taille et 
+  // que le script CGI n'a pas encore commencé à lire, que devient ton event-loop pendant ce write() ?
   if (content_length > 0) {
     write(pipe_body[1], _client->_request.getBody().c_str(), content_length);
   }
