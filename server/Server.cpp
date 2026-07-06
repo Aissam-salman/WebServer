@@ -102,29 +102,72 @@ void Server::handle_sigint(int) {
   std::cerr << "SIGNAL RECEIVED" << std::endl;
 }
 
-/*
- * Init Sockets, add to pollfd
- */
-void Server::setupListeners(void) {
-  Socket socket1("SocketTest");
-  socket1.setSocket(PORT);
-  _sockets_vector.push_back(socket1);
+// ==== LISTENER ====
+Listener::Listener(Socket socket) : _socket(socket) {}
 
-  // std::vector<Socket>::iterator it = _sockets_vector.begin();
-  // std::vector<Socket>::iterator ite = _sockets_vector.end();
-  // for (; it != ite; it++) {
-  //   pollfd pfd;
-  //   pfd.fd = s.getSocketFd();
-  //   pfd.events = POLLIN;
-  //   pfd.revents = 0;
-  //   poll_fds.push_back(pfd);
-  // }
-  //
-  pollfd pol;
-  pol.fd = _sockets_vector.back().getSocketFd();
-  pol.events = POLLIN;
-  pol.revents = 0;
-  _poll_fds.push_back(pol);
+Socket& Listener::getSocket(void) { return (_socket); }
+std::vector<Server*>& Listener::getLinkedServers(void) { return (_linked_servers_vector); }
+
+// Looks for an existing listener already bound to this host:port.
+Listener* findListener(std::vector<Listener>& listeners_vector, std::string host, int port) {
+  for (size_t i = 0; i < listeners_vector.size(); i++) {
+    if (listeners_vector[i].getSocket().getHost() == host &&
+        listeners_vector[i].getSocket().getPort() == port)
+      return (&listeners_vector[i]);
+  }
+  return (NULL);
+}
+
+// Walks every server and its sockets, and builds one listener per unique
+// host:port, linking every server that shares it (virtual hosts).
+std::vector<Listener> gatherListeners(std::vector<Server>& servers_vector) {
+  std::vector<Listener> listener_vectors;
+  std::string           host;
+  int                   port;
+
+  for (size_t i = 0; i < servers_vector.size(); i++) {
+    // reference, not a copy: we only read host/port here
+    const std::vector<Socket>& sockets_vector = servers_vector[i].getSockets();
+
+    for (size_t j = 0; j < sockets_vector.size(); j++) {
+      host = sockets_vector[j].getHost();
+      port = sockets_vector[j].getPort();
+      Listener* listener_ptr = findListener(listener_vectors, host, port);
+
+      // this host:port already has a listener -> just link this server to it
+      if (listener_ptr != NULL)
+        listener_ptr->getLinkedServers().push_back(&servers_vector[i]);
+      // otherwise create a new listener for it
+      else {
+        Listener new_listener(sockets_vector[j]);
+        new_listener.getLinkedServers().push_back(&servers_vector[i]);
+        listener_vectors.push_back(new_listener);
+      }
+    }
+  }
+  return (listener_vectors);
+}
+
+void printListeners(std::vector<Listener>& listeners) {
+  for (size_t i = 0; i < listeners.size(); i++) {
+    std::cout << BOLD_CYAN << "LISTENER NBR " << i << endofline;
+    std::cout << BOLD_RED << "HOST = " << listeners[i].getSocket().getHost()
+              << " || PORT = " << listeners[i].getSocket().getPort() << endofline;
+    std::cout << BOLD_GREEN << "LINKED SERVERS = ";
+    std::vector<Server*> servers = listeners[i].getLinkedServers();
+    for (size_t j = 0; j < servers.size(); j++)
+      std::cout << BOLD_GREEN << servers[j]->getServerName() << " | ";
+    std::cout << endofline;
+  }
+}
+
+// Binds and starts listening on every gathered listener's socket.
+// Free function because it works across all servers, not a single one.
+void setupListeners(std::vector<Listener>& listeners) {
+  for (size_t i = 0; i < listeners.size(); i++) {
+    Socket& socket = listeners[i].getSocket();
+    socket.setSocket(socket.getPort());
+  }
 }
 
 void Server::switchFdsToPollout(int client_fd) {
@@ -234,28 +277,60 @@ void Server::clientWrite(size_t &i, int fd) {
   }
 }
 
+// Called once after every poll() wake-up. poll() has just filled in the
+// .revents field of each pollfd; our job here is to walk the whole set and
+// react to every fd that became ready. We handle THREE kinds of fd, all living
+// in the same _poll_fds array:
+//   1. CGI pipe fds     -> present in _pipe_to_client (pipe read-end <- CGI stdout)
+//   2. listening fds    -> not a client and not a pipe (a bound server socket)
+//   3. client conn fds  -> present in _clients (an accepted TCP connection)
 void Server::loopPollFds(void) {
+
+  // Indexed loop (not an iterator) on purpose: closeClient() erases entries from
+  // _poll_fds and does `i--`, so the container is mutated mid-iteration. We also
+  // re-check .size() each turn because acceptNewClient()/handleCgi() push_back
+  // new fds while we loop.
   for (size_t i = 0; i < _poll_fds.size(); i++) {
     int fd = _poll_fds[i].fd;
 
+    // .revents == 0 -> poll() reported nothing happened on this fd this round.
+    // Skip it; only fds with a pending event are worth handling.
     if (!_poll_fds[i].revents)
       continue;
 
+    // --- Case 1: this fd is a CGI output pipe -------------------------------
+    // The key exists in _pipe_to_client, i.e. it maps this pipe's read-end back
+    // to the client that launched the CGI. Data (or EOF) is ready from the
+    // script's stdout; readCgiPipe() accumulates it and, on EOF, builds the
+    // HTTP response and flips the client to POLLOUT.
     if (_pipe_to_client.count(fd)) {
       readCgiPipe(i, fd);
+
+    // --- Case 2: this fd is a listening socket ------------------------------
+    // Not a client (count == 0) and (from the else-if order) not a pipe either,
+    // so it must be one of our bound listeners. A POLLIN here means a brand-new
+    // connection is waiting: accept() it and register the new client fd.
+    // NOTE (CP3 TODO): we don't yet know WHICH Listener this fd belongs to, so
+    // the accepted client can't carry its candidate servers yet.
     } else if (_clients.count(fd) == 0) {
       if (_poll_fds[i].revents & POLLIN) {
-        // add new client to poll
         int client_fd = accept(fd, NULL, NULL);
-        if (client_fd < 0)
+        if (client_fd < 0)      // accept failed (e.g. client vanished): ignore
           continue;
-        acceptNewClient(client_fd);
+        acceptNewClient(client_fd);  // create Client + add its fd to _poll_fds
       }
+
+    // --- Case 3: this fd is an established client connection -----------------
     } else {
+      // POLLIN: the client sent bytes -> read/parse the request (may dispatch
+      // to CGI or build a response, and switch the fd to POLLOUT when ready).
       if (_poll_fds[i].revents & POLLIN)
         clientRead(i, fd);
+      // POLLOUT: the socket is writable -> flush (part of) the response;
+      // closeClient() once everything has been sent.
       else if (_poll_fds[i].revents & POLLOUT) {
         clientWrite(i, fd);
+      // POLLHUP/POLLERR: peer hung up or the socket errored -> tear it down.
       } else if (_poll_fds[i].revents & (POLLHUP | POLLERR)) {
         closeClient(i, fd);
       }
@@ -263,8 +338,20 @@ void Server::loopPollFds(void) {
   }
 }
 
-void Server::run(void) {
-  setupListeners();
+// RUNS THE SERVER
+// TODO : Scale from one server to multiple server -> Make run in a "super-class" such as WebServer that can run through all the fds of all servers
+void Server::run(std::vector<Listener>& listeners) {
+
+  // Binds the listeners Sockets to the poll_fds to listen to
+  for (size_t i = 0; i < listeners.size(); i++) {
+    pollfd pol;
+    pol.fd = listeners[i].getSocket().getSocketFd();
+    pol.events = POLLIN;
+    pol.revents = 0;
+    _poll_fds.push_back(pol);
+  }
+
+  // Main loop for poll
   while (_running) {
     int ret = poll(&_poll_fds[0], _poll_fds.size(), TIMEOUT);
     if (ret == -1 && _running)

@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+class Listener;
+
 class Server {
 private:
   std::string _name;
@@ -26,8 +28,7 @@ private:
   Server &operator=(const Server &other);
 
 	//INFO: refacto
-	void setupListeners(void); // init socket
-	void acceptNewClient(int listen_fd); // bloc accept 
+	void acceptNewClient(int listen_fd); // bloc accept
 	void readCgiPipe(size_t &i, int fd);
 	void clientRead(size_t &i, int fd);
 	void clientWrite(size_t &i, int fd);
@@ -65,16 +66,30 @@ public:
 
 	static bool					_running;
 
-	void						run(void);
+	void						run(std::vector<Listener>& listeners);
 	static void					handle_sigint(int);
 
-	
+
 };
 
-struct Listener {
-    Socket _socket;
-    std::vector<Server*> _pointers_to_server;
+// One listening socket shared by every server that answers on its host:port
+// (virtual hosts). Kept outside Server so servers don't own their listeners.
+class Listener {
+    private:
+        Socket					_socket;
+        std::vector<Server*>	_linked_servers_vector;
+
+    public:
+        Listener(Socket socket);
+
+        Socket& getSocket(void);
+        std::vector<Server*>& getLinkedServers(void);
 };
 
+// Free functions: operate across ALL servers, so they live outside Server.
+std::vector<Listener>	gatherListeners(std::vector<Server>& servers_vector);
+Listener*				findListener(std::vector<Listener>& listeners_vector, std::string host, int port);
+void					printListeners(std::vector<Listener>& listeners);
+void					setupListeners(std::vector<Listener>& listeners);
 
 #endif

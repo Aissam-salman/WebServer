@@ -6,6 +6,8 @@
 #include <sstream>
 #include <stdexcept>
 
+#include "utils.hpp"
+
 Request::Request(const std::string &server_port, const std::string &client_ip,
                  const std::string &client_port,
                  const std::string &document_root)
@@ -69,7 +71,13 @@ void Request::parseRequest(const std::string &raw_request) {
     parseCgi_env();
 }
 
+// CHECKS THE REQUEST FIRST LINE SENT BY THE CLIENT
 void Request::parseRequestLine(const std::string &first_line) {
+
+#if DEBUG_REQUEST == 1
+  std::cout << "Request Line = " << first_line << endofline;
+#endif
+
   std::istringstream iss(first_line);
   iss >> method >> resource >> http_version;
 
@@ -79,6 +87,8 @@ void Request::parseRequestLine(const std::string &first_line) {
   std::string extra;
   if (iss >> extra)
     throw std::invalid_argument("400");
+
+  
   if (method != "GET" && method != "POST" && method != "DELETE" &&
       method != "PUT")
     throw std::runtime_error("405");

@@ -1,0 +1,61 @@
+%% WebServ — codebase map
+%% Import into Miro: Create diagram -> Mermaid, then paste this whole file.
+flowchart TD
+
+  %% ---------- Stage 1: Config -> Objects ----------
+  subgraph S1["01 · Config → Objects  (server/config/)"]
+    direction LR
+    Lexer["Lexer\nreads .conf → words/separators"]
+    Token["Token\nunit + type (directive, param, {} ;)"]
+    Parser["Parser\nstate machine GLOBAL/SERVER/LOCATION"]
+    Servers["vector&lt;Server&gt;\nsockets, locations, error pages, body cap"]
+    Lexer --> Token --> Parser --> Servers
+  end
+
+  %% ---------- Stage 2: Listeners ----------
+  subgraph S2["02 · Wire up Listeners  (free functions, outside Server)"]
+    direction LR
+    Gather["gatherListeners()\ndedup by host:port"]
+    Listener["Listener\nsocket + servers behind it"]
+    Setup["setupListeners()\nsocket→setsockopt→bind→listen"]
+    Gather --> Listener --> Setup
+  end
+
+  %% ---------- Stage 3: Event loop ----------
+  subgraph S3["03 · Event Loop  (Server::run → loopPollFds)"]
+    Poll["while(_running) poll(_poll_fds)\ndispatch each ready fd by kind"]
+    Cgipipe["readCgiPipe()\nfd ∈ _pipe_to_client"]
+    Accept["accept() → acceptNewClient()\nnot client, not pipe"]
+    ClientH["clientRead / clientWrite / closeClient\nfd ∈ _clients"]
+    Poll --> Cgipipe
+    Poll --> Accept
+    Poll --> ClientH
+  end
+
+  %% ---------- Stage 4: Request ----------
+  subgraph S4["04 · Serve one Request  (per connection)"]
+    direction LR
+    Client["Client\nbuffers, state, Request, CGI pipe/pid"]
+    Request["Request\nparse line/headers/body, detect CGI"]
+    Cgi["Cgi\nfork + execve, pipe body/output"]
+    Response["Response\nbuild HTTP status/headers/body"]
+    Client --> Request
+    Request --> Cgi
+    Request --> Response
+  end
+
+  %% ---------- Stage connectors ----------
+  Servers -->|servers_vector| Gather
+  Setup -->|listeners with live fds| Poll
+  Accept -->|new connection| Client
+
+  %% ---------- Layer colors ----------
+  classDef config fill:#7b52c9,stroke:#5a3aa0,color:#fff;
+  classDef net    fill:#2f74d0,stroke:#1f57a3,color:#fff;
+  classDef loop   fill:#0e9b8f,stroke:#0a726a,color:#fff;
+  classDef req    fill:#c8811f,stroke:#9c6316,color:#fff;
+
+  class Lexer,Token,Parser,Servers config;
+  class Gather,Listener,Setup net;
+  class Poll,Cgipipe,Accept,ClientH loop;
+  class Client,Request,Cgi,Response req;
