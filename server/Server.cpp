@@ -144,9 +144,9 @@ void Server::readCgiPipe(size_t &i, int fd) {
   Client &client = _clients[client_fd];
   char buf[4096];
   int n = read(fd, buf, sizeof(buf));
-  //WARN: 
-  // que se passe-t-il si read() retourne -1 (erreur) ? 
-  // Le code ne traite que n > 0 et n == 0 : dans le cas d'erreur, 
+  //WARN:
+  // que se passe-t-il si read() retourne -1 (erreur) ?
+  // Le code ne traite que n > 0 et n == 0 : dans le cas d'erreur,
   // le fd ne serait jamais fermé ni retiré de _poll_fds. Ça te semble un cas possible en pratique ?
   if (n > 0) {
     client.appendToBufferCgi(buf, n);
@@ -175,10 +175,10 @@ void Server::closeClient(size_t &i, int fd) {
 }
 
 // send client to cgi execve, with request already parsed
-// and add to pollfds, 
+// and add to pollfds,
 // i add to pipe_to_client to keep the stdout pipe of execve, for the response
 // from cgi script (non bloquant)
-// associate the pipe with client 
+// associate the pipe with client
 void Server::handleCgi(Client &client, int fd) {
   Cgi cgi(_languages_supported, &client);
   cgi.run();
