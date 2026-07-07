@@ -88,7 +88,6 @@ void Request::parseRequestLine(const std::string &first_line) {
   if (iss >> extra)
     throw std::invalid_argument("400");
 
-  
   if (method != "GET" && method != "POST" && method != "DELETE" &&
       method != "PUT")
     throw std::runtime_error("405");

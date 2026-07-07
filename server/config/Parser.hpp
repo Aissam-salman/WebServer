@@ -1,10 +1,16 @@
 #ifndef PARSER_HPP
 #define PARSER_HPP
 
+#include <map>
+#include <string>
 #include <vector>
 
 #include "Server.hpp"
 #include "Token.hpp"
+#include "utils.hpp"
+
+// METHOD MAP -> String to e_method
+const std::map<std::string, e_methods>&	getMethodMap(void);
 
 class Parser {
 public:
@@ -43,7 +49,7 @@ public:
 	void				setupAutoIndex(void);
 	void				setupMethods(void);
 	// void				setupUploadDir(void);
-	void				setupCGI(void);
+	void				setupCGI(void); // TODO : Est-ce qu'on implémente les cgi au niveau du serveur ou est on les pose par location
 	void				setupReturn(void);
 	void				findDirectiveTokenVector(size_t& index);
 

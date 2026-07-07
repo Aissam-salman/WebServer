@@ -50,6 +50,10 @@ bool    isValidKey(const std::string &key, const std::string keys_list[], const 
     return (false);
 }
 
+bool	endsWith(const std::string& path, const std::string& suffix) {
+	return (path.size() >= suffix.size() && path.compare(path.size() - suffix.size(), suffix.size(), suffix) == 0);
+}
+
 void logError(std::string &msg) {
 	std::ofstream log_file_path("logs/server_ws_errors.log", std::ios::app);
 	if (log_file_path.is_open()){

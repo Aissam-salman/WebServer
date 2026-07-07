@@ -1,4 +1,5 @@
 #include "StaticHandler.hpp"
+#include "Parser.hpp"
 #include <unistd.h>
 #include <dirent.h>
 #include <fstream>
@@ -81,9 +82,19 @@ std::string     StaticHandler::readFile(const std::string& path) const
 bool StaticHandler::isSafePath(const std::string& path) const
 {
     std::string root = _location.getRootPath();    
-    // Ajouter un / au root s'il n'en a pas
-    if (root.length() > 0 && root[root.length() - 1] != '/')
-        root += '/';
+
+
+    if (root.size() >= 2 && root[0] == '.' && root[1] == '/')
+        root = root.substr(1);                    // enleve le '.' : "./www" -> "/www"
+    if (root.empty() || root[0] != '/')
+        root = "/" + root;                        // ajoute un / au debut : "www" -> "/www"
+    if (root[root.length() - 1] != '/')
+        root += '/';                              // ajoute un / a la fin
+
+# if DEBUG_RESPONSE == 1
+    std::cout << "ROOT = " << root << endofline;
+#endif
+
     std::vector<std::string> parts; //chaque segment du path /'...'/
     std::istringstream stream(path);
     std::string part;
@@ -109,6 +120,11 @@ bool StaticHandler::isSafePath(const std::string& path) const
         normalized += "/";
     }
     // Vérifier que le chemin commence par root
+
+# if DEBUG_RESPONSE == 1
+    std::cout << "NORMALIZED = " << normalized << endofline;
+#endif
+
     return normalized.find(root) == 0;
 }
 
@@ -153,12 +169,23 @@ Response StaticHandler::handle() const
         resp.setHeader("Location", _location.getReturnPath()); //met le header obligatoire dune redir
         return resp;
     }
-    //faire methode avec bitmask
+    // vérifier que la méthode est autorisée pour cette location (bitmask)
+    std::map<std::string, e_methods>::const_iterator mit =
+        getMethodMap().find(_request.getMethod());
+    if (mit == getMethodMap().end() || (_location.getMethodFlag() & mit->second) == 0)
+        throw std::runtime_error("405");
 
     //construire et vérifier le path
     std::string path = buildPath();
+# if DEBUG_RESPONSE == 1
+    std::cout << BOLD_CYAN << "PATH RESPONSE = " << path << endofline;
+#endif
     if (!isSafePath(path))
         throw std::runtime_error("403");
+
+# if DEBUG_RESPONSE == 1
+    std::cout << BOLD_CYAN << "JE PASSE ICI" << endofline;
+#endif
 
     struct stat st;
     if (stat(path.c_str(), &st) != 0) //recup les stats du fichier
