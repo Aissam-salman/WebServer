@@ -31,7 +31,8 @@ SERVER_SRC = \
     $(CONFIG_DIR)/configutils.cpp \
     $(CGI_DIR)/Cgi.cpp \
     $(CLIENT_DIR)/Client.cpp \
-    $(UTILS_DIR)/utils.cpp 
+    $(UTILS_DIR)/utils.cpp \
+		$(SRC_DIR)/StaticHandler.cpp
 
 OBJDIR     = objs
 SERVER_OBJ = $(patsubst %.cpp,$(OBJDIR)/%.o,$(SERVER_SRC))
@@ -45,7 +46,7 @@ DEBUG_FLAGS = -g3 -O0
 ASAN_FLAGS  = -fsanitize=address   -fno-omit-frame-pointer
 UBSAN_FLAGS = -fsanitize=undefined -fno-omit-frame-pointer
 
-all: server 
+all: server
 
 # mkdir -p creates the per-subdir bucket on demand
 $(OBJDIR)/%.o: %.cpp
@@ -55,7 +56,7 @@ $(OBJDIR)/%.o: %.cpp
 server: $(SERVER_OBJ)
 	$(CXX) $(CXXFLAGS) $^ -o $(NAME) $(LDFLAGS)
 
-server_conf: $(NAME) 
+server_conf: $(NAME)
 		./$(NAME) webserv.conf
 # client: $(CLIENT_OBJ)
 # 	$(CXX) $(CXXFLAGS) $^ -o $(CLIENT) $(LDFLAGS)
@@ -66,7 +67,7 @@ clean:
 	rm -rf $(OBJDIR)
 
 fclean: clean
-	rm -f $(NAME) 
+	rm -f $(NAME)
 
 re: fclean all
 
@@ -115,4 +116,4 @@ help:
 	@echo "  make leaks         rebuild debug, then run leaks (mac) / valgrind (linux)"
 	@echo "  make watch  auto-rebuild server on change (needs fswatch)"
 
-.PHONY: all clean fclean re debug asan leaks watch server_conf help 
+.PHONY: all clean fclean re debug asan leaks watch server_conf help

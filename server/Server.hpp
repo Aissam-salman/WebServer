@@ -38,7 +38,7 @@ private:
 	void responseError(std::runtime_error &e, int i, Client &client);
 	void loopPollFds(void);
 	void switchFdsToPollout(int client_fd);
-	
+
 
 public:
 	~Server();

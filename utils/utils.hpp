@@ -4,18 +4,19 @@
 #include <iostream>
 #include <string>
 #include <map>
+#include "Response.hpp"
 
 #ifndef DEBUG
-#define DEBUG 0
-#endif 
+#define DEBUG 1
+#endif
 
 #ifndef RUN
 #define RUN 1
-#endif 
+#endif
 
 #ifndef DEBUG_REQUEST
 #define DEBUG_REQUEST 1
-#endif 
+#endif
 
 // ====== MACROS ======
 // GLOBAL MACROS
@@ -38,11 +39,11 @@ enum e_codes {
 	NO_CONTENT = 204, // Success but no body. Headers still terminate with `\r\n\r\n`, but no bytes after.
 
 	// REDIRECTION
-	MOVED_PERMANENTLY = 301, // This URL is gone forever; use the new one from now on	
+	MOVED_PERMANENTLY = 301, // This URL is gone forever; use the new one from now on
 	FOUND = 302, // This URL is temporarily elsewhere; come back here for the original
 	SEE_OTHER = 303, // Use the new URL with `GET`, regardless of original method
 	TEMPORARY_REDIRECT = 307, // Like 302 but explicitly preserves the method
-	PERMANENT_REDIRECT = 308, //Like 301 but explicitly preserves the method  
+	PERMANENT_REDIRECT = 308, //Like 301 but explicitly preserves the method
 
 	// CLIENT ERROR
 	BAD_REQUEST = 400,
@@ -83,7 +84,7 @@ enum e_methods {
 
 typedef std::map<int, std::string> MapIntStr;
 
-// CHECK A KEY 
+// CHECK A KEY
 bool    isValidKey(const std::string &key, const std::string keys_list[], const size_t size) ;
 
 // UTILS FOR OUTPUT
@@ -100,7 +101,7 @@ void logError(std::string &msg);
 
 const std::string buildHttpResponse(const std::string &cgi_output);
 
-
+Response buildErrorResponse(int code, const MapIntStr &error_pages);
 
 // COLORS BANK
 // Regular colors

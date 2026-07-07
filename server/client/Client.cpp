@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Client.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: tgomez-f <tgomez-f@student.42.fr>          +#+  +:+       +#+        */
+/*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/20 18:40:45 by alamjada          #+#    #+#             */
-/*   Updated: 2026/06/24 11:29:43 by tgomez-f         ###   ########.fr       */
+/*   Updated: 2026/07/07 15:18:16 by alamjada         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -105,22 +105,3 @@ bool Client::handleSend(void) {
 }
 
 Client *Client::clone(void) { return new Client(*this); }
-
-void Client::process(void) {
-  try {
-		std::cerr << "[DEBUG]" << std::endl;
-    _request.parseRequest(_buffer_read);
-    Response resp(200);
-    std::string bu = resp.build();
-    setResponse(bu);
-  } catch (std::runtime_error &e) {
-    int code = std::atoi(e.what());
-    if (code == 0)
-      code = 500; // si e.what() n'est pas un code HTTP
-    Response resp(code);
-    std::string bu = resp.build();
-    setResponse(bu);
-  } catch (...) {
-		std::cerr << "process client" << std::endl;
-	}
-}

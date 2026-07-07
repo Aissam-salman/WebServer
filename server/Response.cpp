@@ -30,7 +30,7 @@ void    Response::setHeader(const std::string& key, const std::string& value)
 }
 
 Response::Response(int code, const std::string& content, const std::string& mimetype)
-    : _status_code(code), _content_type(mimetype), _body(content)
+    : _status_code(code), _body(content), _content_type(mimetype)
 {
     _headers["Server"] = "webserv/1.0";
     char buf[128];

@@ -45,8 +45,6 @@ int main(int argc, char **argv) {
     printListeners(listeners);
 #endif
 
-    setupListeners(listeners);
-
 #if RUN == 1
     servers_vector[0].run(listeners);
 #endif
