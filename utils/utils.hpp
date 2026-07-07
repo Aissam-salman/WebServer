@@ -6,17 +6,12 @@
 #include <map>
 #include "Response.hpp"
 
-#ifndef DEBUG
-#define DEBUG 1
-#endif
+#define DEBUG 0
+#define DEBUG_REQUEST 0
+#define DEBUG_RESPONSE 0
 
-#ifndef RUN
 #define RUN 1
-#endif
 
-#ifndef DEBUG_REQUEST
-#define DEBUG_REQUEST 1
-#endif
 
 // ====== MACROS ======
 // GLOBAL MACROS
@@ -86,6 +81,8 @@ typedef std::map<int, std::string> MapIntStr;
 
 // CHECK A KEY
 bool    isValidKey(const std::string &key, const std::string keys_list[], const size_t size) ;
+
+bool	endsWith(const std::string& path, const std::string& suffix);
 
 // UTILS FOR OUTPUT
 void	printSetMethods(int flag);

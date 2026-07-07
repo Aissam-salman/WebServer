@@ -32,8 +32,12 @@ static std::map<std::string, e_methods> makeMethodMap(void) {
 	return m;
 }
 
-// DEFINES THE DEFAULT MAP FOR METHODS;
-static const std::map<std::string, e_methods> MethodMap = makeMethodMap();
+// DEFINES THE DEFAULT MAP FOR METHODS (external linkage via getMethodMap);
+// The map is built once on first call and shared across translation units.
+const std::map<std::string, e_methods>&	getMethodMap(void) {
+	static const std::map<std::string, e_methods> MethodMap = makeMethodMap();
+	return MethodMap;
+}
 
 // CONSTRUCTOR TAKING TOKENS_VECTOR AND SERVER_VECTOR'S REFERENCE
 Parser::Parser(std::vector<Token> tokens_vector, std::vector<Server> &servers_vector): _state(GLOBAL), _tokens_vector(tokens_vector), _servers_vector(servers_vector) {
@@ -137,7 +141,8 @@ void	Parser::parseStateDirective(size_t& index) {
 
 // ===== DIRECTIVES FUNCTIONS =====
 
-// TODO: no need to check for access now, it will be checked for each request
+// TODO : Is that all for setupRoot and index ?
+// INFO: no need to check for access now, it will be checked for each request
 // SETS UP ROOT PATH
 void				Parser::setupRoot(void) {
 	expectSingleValue();
@@ -157,12 +162,28 @@ void	Parser::setupMethods(void) {
 
 	for (size_t i = 1; i + 1 < _temp_vector.size(); i++) {
 			std::map<std::string, e_methods>::const_iterator it =
-					MethodMap.find(_temp_vector[i]._value);
-			if (it == MethodMap.end())
+					getMethodMap().find(_temp_vector[i]._value);
+			if (it == getMethodMap().end())
 					throw std::runtime_error(ERRS_PARSER_INVALID_METHOD_PREFIX
 							+ _temp_vector[i]._value + ERRS_PARSER_INVALID_METHOD_SUFFIX);
 			getCurrentLocation().getMethodFlag() |= it->second; 
 	}
+}
+
+// SETTING UP THE CGI : CHECKING IF AVAILABLE AND FILLS THE MAP OF CGI
+void				Parser::setupCGI(void) {
+	if (_temp_vector.size() != 4)
+		throw std::runtime_error (ERRS_PARSER_INVALID_SYNTAX + _temp_vector[0]._value);
+
+	const std::string& extension   = _temp_vector[1]._value;
+	const std::string& interpreter = _temp_vector[2]._value;
+
+	// TODO : Change condition if doing more than one CGI
+	if (extension != ".py" || !endsWith(interpreter, "/python3"))
+		throw std::runtime_error(ERRS_PARSER_INVALID_SYNTAX + extension);
+
+	// Maps the extension to its interpreter for this location
+	getCurrentLocation().setCgi(extension, interpreter);
 }
 
 // SETTING UP THE MAX BODY SIZE, TAKING IN ACCOUNT IF THERE'S A SIZE CHARACTER
@@ -201,7 +222,7 @@ void				Parser::setupMaxBodySize(void) {
 		getCurrentServer().setMaxBodySize(result);
 }
 
-// Checks if the standard of IPv4 adresses is well respected
+// CHECKS IF THE STANDARD OF IPV4 ADRESSES IS WELL RESPECTED
 static bool	isValidIP(const std::string& host) {
 	int		octets = 0;
 	size_t	i = 0;
@@ -235,7 +256,7 @@ static bool	isValidIP(const std::string& host) {
 }
 
 
-// Checks if the standard of port is well respected
+// CHECKS IF THE STANDARD OF PORT IS WELL RESPECTED
 static int	parsePort(const std::string& port_str) {
 	if (port_str.empty())
 		throw std::runtime_error(ERRS_PARSER_INVALID_PORT + port_str);
@@ -330,7 +351,7 @@ void				Parser::setupReturn(void) {
 	getCurrentLocation().setReturnPath( _temp_vector[2]._value );
 }
 
-// Checks if the error code is conform and in the range given
+// CHECKS IF THE ERROR CODE IS CONFORM AND IN THE RANGE GIVEN
 static int	parseErrorCode(const std::string& code_str) {
 	if (code_str.empty())
 		throw std::runtime_error(ERRS_PARSER_INVALID_ERROR_CODE + code_str);
@@ -370,7 +391,7 @@ void	Parser::findDirectiveTokenVector(size_t& index) {
 
 
 // TODO : Refactoriser cette immondice
-// Handles handles the different directives
+// HANDLES HANDLES THE DIFFERENT DIRECTIVES
 void	Parser::parseDirective(size_t& index) {
 	const std::string& key = _tokens_vector[index]._value;
 
@@ -409,6 +430,8 @@ void	Parser::parseDirective(size_t& index) {
 		setupReturn();
 	else if (_temp_vector[0]._value == "error_page")
 		setupErrorPages();
+	else if (_temp_vector[0]._value == "cgi")
+		setupCGI();
 }
 
 // MAIN PARSING FUNCTION -> CREATING THE CLASSES
@@ -449,7 +472,7 @@ void	Parser::initServers(void) {
 
 // ===== TEST/OUTPUT ===== // 
 
-// (F) OUTPUTS PARSER STATE ON STDOUT
+// OUTPUTS PARSER STATE ON STDOUT
 void	Parser::printState(void) {
 	switch (_state) {
 		case GLOBAL : display("GLOBAL"); break;

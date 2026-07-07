@@ -2,6 +2,7 @@
 # define LOCATION_HPP
 
 #include <string>
+#include <map>
 
 #include "utils.hpp"
 
@@ -16,6 +17,7 @@ class Location {
 		bool						_return;
 		int							_return_error_code;
 		std::string					_return_path;
+		std::map<std::string, std::string>	_cgi_map;
 
 	public:
 
@@ -34,6 +36,7 @@ class Location {
 		void	setReturn(bool state);
 		void	setReturnPath(std::string path);
 		void	setReturnErrorCode(int code);
+		void	setCgi(std::string extension, std::string interpreter);
 
 		// GETTERS
 		std::string&	getName(void);
@@ -45,6 +48,7 @@ class Location {
 		bool			getReturn(void) const;
 		std::string&	getReturnPath(void);
 		int				getReturnErrorCode(void) const;
+		std::map<std::string, std::string>&	getCgiMap(void);
 
 		void	printLocation(void) const;
 };

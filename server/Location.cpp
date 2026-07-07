@@ -17,7 +17,8 @@ Location::Location(const Location &src):
 	_methods_flag(src._methods_flag),
 	_return(src._return),
 	_return_error_code(src._return_error_code),
-	_return_path(src._return_path) {}
+	_return_path(src._return_path),
+	_cgi_map(src._cgi_map) {}
 
 Location& Location::operator=(const Location &other) {
     if (this != &other) {
@@ -30,6 +31,7 @@ Location& Location::operator=(const Location &other) {
         _return = other._return;
         _return_error_code = other._return_error_code;
         _return_path = other._return_path;
+        _cgi_map = other._cgi_map;
     }
     return *this;
 }
@@ -46,6 +48,7 @@ void	Location::setMethods(e_methods method) { _methods_flag |= method; }
 void	Location::setReturn(bool state) { _return = state; }
 void	Location::setReturnPath(std::string path) { _return_path = path; }
 void	Location::setReturnErrorCode(int code) { _return_error_code = code; }
+void	Location::setCgi(std::string extension, std::string interpreter) { _cgi_map[extension] = interpreter; }
 
 // ==== GETTERS ====
 std::string&	Location::getName(void) { return (_name); }
@@ -57,6 +60,7 @@ int&			Location::getMethodFlag(void) { return (_methods_flag); }
 bool			Location::getReturn(void) const { return (_return); }
 std::string&	Location::getReturnPath(void) { return (_return_path); }
 int				Location::getReturnErrorCode(void) const { return (_return_error_code); }
+std::map<std::string, std::string>&	Location::getCgiMap(void) { return (_cgi_map); }
 
 // ==== OUTPUTS ====
 void	Location::printLocation(void) const {
@@ -69,6 +73,8 @@ void	Location::printLocation(void) const {
     std::cout << BOLD_YELLOW << "RETURN CODE = " << _return_error_code << endofline;
     std::cout << BOLD_YELLOW << "RETURN PATH = " << _return_path << endofline;
     printSetMethods(_methods_flag);;
-    
+    for (std::map<std::string, std::string>::const_iterator it = _cgi_map.begin(); it != _cgi_map.end(); ++it)
+        std::cout << BOLD_YELLOW << "CGI = " << it->first << " -> " << it->second << endofline;
+
     std::cout << BOLD_WHITE << "===============================" << endofline;
 }
