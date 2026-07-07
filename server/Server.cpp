@@ -1,8 +1,11 @@
+#include "Client.hpp"
+#include "Request.hpp"
 #include "Server.hpp"
 #include "Response.hpp"
 #include "Cgi.hpp"
 #include "config/configutils.hpp"
-#include "utils.hpp"
+#include "../utils/utils.hpp"
+#include "StaticHandler.hpp"
 #include <csignal>
 #include <cstdlib>
 #include <iostream>
@@ -179,14 +182,15 @@ void Server::run(void) {
             } else {
               try {
                 client._request.parseRequest(client.getBufferRead());
-                Response response(200);
+                StaticHandler handler(client._request, _locations_vector);
+                Response response = handler.handle();
                 std::string bu = response.build();
                 client.setResponse(bu);
               } catch (std::runtime_error &e) {
                 int code = std::atoi(e.what());
                 if (code == 0)
                   code = 500; // si e.what() n'est pas un code HTTP
-                Response response(code);
+                Response response = buildErrorResponse(code, getErrorPages());
                 std::string bu = response.build();
                 client.setResponse(bu);
               } catch (...) {
@@ -211,3 +215,6 @@ void Server::run(void) {
     }
   }
 }
+
+
+
