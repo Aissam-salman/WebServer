@@ -9,10 +9,13 @@ private:
     std::string                         _content_type;
     std::map<std::string, std::string>  _headers;
 
-    void    parseCgi_output(const std::string& raw_output);
+    
 public:
-
-    Response(int code);
-    Response(int code, const std::string& cgi_output);
-    std::string build(); // construit la reponse final HTTP
+    
+    Response(int code, const std::string& content, const std::string& mimetype);
+    
+    std::string         build(); // construit la reponse final HTTP
+    void                setHeader(const std::string& key, const std::string& value);
+    static std::string  reasonPhrase(int code);
+    
 };

@@ -1,4 +1,7 @@
+#include "Response.hpp"
+#include "Location.hpp"
 #include "utils.hpp"
+#include <vector>
 #include <ctime>
 #include <fstream>
 #include <sstream>
@@ -104,3 +107,21 @@ const std::string buildHttpResponse(const std::string &cgi_output) {
   return resp.str();
 }
 
+//root vient des error_pages directement
+Response    buildErrorResponse(int code, const MapIntStr& error_pages)
+{
+    if (error_pages.count(code)) {
+        std::ifstream f(error_pages.at(code).c_str());
+        if (f.is_open()) {
+            std::ostringstream ss;
+            ss << f.rdbuf();
+            return Response(code, ss.str(), "text/html");
+        }
+    }
+    //normalement on arrive jamais la, mais build une vrai reponse au cas ou
+    std::string reason = Response::reasonPhrase(code);
+    std::ostringstream body;
+    body << "<html><head><title>" << code << " " << reason << "</title></head>"
+         << "<body><h1>" << code << " " << reason << "</h1>"
+         << "<hr><p>webserv/1.0</p></body></html>";
+    return Response(code, body.str(), "text/html");}
