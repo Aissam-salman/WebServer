@@ -6,6 +6,7 @@
 #include "client/Client.hpp"
 #include "utils.hpp"
 #include <map>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -18,8 +19,25 @@ private:
   long _max_body_size;    // TODO : Ajouter le cap body_size
   // HOW TO STORE ERROR_PAGES (MAP ?)
   std::map<int, Client> _clients;
+	std::vector<std::string> _languages_supported;
+	std::vector<pollfd> _poll_fds;
+  std::map<int, int> _pipe_to_client;
 
   Server &operator=(const Server &other);
+
+	//INFO: refacto
+	void setupListeners(void); // init socket
+	void acceptNewClient(int listen_fd); // bloc accept 
+	void readCgiPipe(size_t &i, int fd);
+	void clientRead(size_t &i, int fd);
+	void clientWrite(size_t &i, int fd);
+	void closeClient(size_t &i, int fd);
+	void handleCgi(Client & client, int fd);
+	void handleReq(Client &client, int i);
+	void responseError(std::runtime_error &e, int i, Client &client);
+	void loopPollFds(void);
+	void switchFdsToPollout(int client_fd);
+	
 
 public:
 	~Server();
@@ -46,8 +64,11 @@ public:
 	void 						addErrorPage(int code, std::string path);
 
 	static bool					_running;
+
 	void						run(void);
 	static void					handle_sigint(int);
+
+	
 };
 
 struct Listener {
