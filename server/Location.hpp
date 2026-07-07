@@ -49,4 +49,6 @@ class Location {
 		void	printLocation(void) const;
 };
 
+Location* findLocation(); // TODO: unfinished — needs params (path, locations) + a definition
+
 #endif

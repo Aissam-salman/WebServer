@@ -5,6 +5,18 @@
 #include <string>
 #include <map>
 
+#ifndef DEBUG
+#define DEBUG 0
+#endif 
+
+#ifndef RUN
+#define RUN 1
+#endif 
+
+#ifndef DEBUG_REQUEST
+#define DEBUG_REQUEST 1
+#endif 
+
 // ====== MACROS ======
 // GLOBAL MACROS
 #define STD_BUFFER 4096

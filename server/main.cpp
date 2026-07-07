@@ -15,6 +15,8 @@
 #include "utils.hpp"
 // #include "Socket.hpp"
 
+// TODO : Add fcntl to addNewClient to set it to non blocking
+
 using namespace std;
 
 // int main (void) {
@@ -34,10 +36,20 @@ int main(int argc, char **argv) {
     Parser parser(lexer.getTokenVector(), servers_vector);
     parser.initServers();
 
+    std::vector<Listener> listeners = gatherListeners(servers_vector);
+
+#if DEBUG == 1
     for (size_t i = 0; i < servers_vector.size(); i++) {
       servers_vector[i].printServer();
     }
-    servers_vector[0].run();
+    printListeners(listeners);
+#endif
+
+    setupListeners(listeners);
+
+#if RUN == 1
+    servers_vector[0].run(listeners);
+#endif
   } catch (runtime_error &e) {
     std::cerr << RED << e.what() << endofline;
   } catch (exception &e) {
