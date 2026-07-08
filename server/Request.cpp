@@ -53,8 +53,8 @@ void Request::parseRequest(const std::string &raw_request) {
     if (pose == std::string::npos)
       continue; // Skip si pas de colon
 
-    std::string key = trim(line.substr(0, pos));
-    std::string value = trim(line.substr(pos + 1));
+    std::string key = trim(line.substr(0, pose));
+    std::string value = trim(line.substr(pose + 1));
 
     if (!key.empty())
       headers[key] = value;
