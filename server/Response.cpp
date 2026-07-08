@@ -39,6 +39,16 @@ Response::Response(int code, const std::string& content, const std::string& mime
     _headers["Date"] = buf;
 }
 
+Response::Response(int code, const std::string& content)
+    : _status_code(code), _body(content)
+{
+    _headers["Server"] = "webserv/1.0";
+    char buf[128];
+    time_t now = time(NULL);
+    strftime(buf, sizeof(buf), "%a, %d %b %Y %H:%M:%S GMT", gmtime(&now));
+    _headers["Date"] = buf;
+}
+
 
 std::string Response::build() //build la reponse finale
 {

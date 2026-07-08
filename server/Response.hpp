@@ -16,6 +16,7 @@ private:
 public:
 
     Response(int code, const std::string& content, const std::string& mimetype);
+    Response(int code, const std::string& content);
 
     std::string         build(); // construit la reponse final HTTP
     void                setHeader(const std::string& key, const std::string& value);

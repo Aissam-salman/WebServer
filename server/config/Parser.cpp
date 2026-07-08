@@ -41,12 +41,12 @@ const std::map<std::string, e_methods>&	getMethodMap(void) {
 
 // CONSTRUCTOR TAKING TOKENS_VECTOR AND SERVER_VECTOR'S REFERENCE
 Parser::Parser(std::vector<Token> tokens_vector, std::vector<Server> &servers_vector): _state(GLOBAL), _tokens_vector(tokens_vector), _servers_vector(servers_vector) {
-	std::cout << "Parser constructor called" << std::endl;
+	// std::cout << "Parser constructor called" << std::endl;
 }
 
 // DESTRUCTOR
 Parser::~Parser() {
-	std::cout << "Parser Destructor called" << std::endl;
+	// std::cout << "Parser Destructor called" << std::endl;
 }
 
 // ===== UTILS FUNCTONS =====

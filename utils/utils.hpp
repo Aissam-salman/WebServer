@@ -6,7 +6,9 @@
 #include <map>
 #include "Response.hpp"
 
-#define DEBUG 0
+#ifndef DEBUG
+# define DEBUG 0
+#endif
 #define DEBUG_REQUEST 1
 #define DEBUG_RESPONSE 1
 
@@ -100,6 +102,7 @@ const std::string buildHttpResponse(const std::string &cgi_output);
 
 Response buildErrorResponse(int code, const MapIntStr &error_pages);
 
+
 // COLORS BANK
 // Regular colors
 # define BLACK          "\033[30m"
@@ -152,5 +155,10 @@ Response buildErrorResponse(int code, const MapIntStr &error_pages);
 
 // Reset
 # define RESET           "\033[0m"
+
+template <typename T>
+void debug(T var,std::string label, std::string color) {
+    std::cerr  << color << "[DEBUG]->" << label << "=" << var << std::endl;
+}
 
 #endif

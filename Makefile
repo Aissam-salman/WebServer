@@ -75,6 +75,9 @@ re: fclean all
 debug: CXXFLAGS += $(DEBUG_FLAGS)
 debug: re
 
+logs: CXXFLAGS += -DDEBUG=1
+logs: re
+
 asan: CXXFLAGS += $(DEBUG_FLAGS) $(ASAN_FLAGS) $(UBSAN_FLAGS)
 asan: LDFLAGS  += $(ASAN_FLAGS) $(UBSAN_FLAGS)
 asan: re
