@@ -1,0 +1,1788 @@
+{
+  "info": {
+    "name": "WebServ - tests complets (HTTP + CGI)",
+    "description": "Collection de tests pour le projet WebServ : cas HTTP génériques dérivés de webserv.conf (méthodes par location, autoindex, redirections, virtual hosts, tailles de body) + API CGI Python (serve.py, articles) + API CGI PHP (index.php, catalogue d'images). Plusieurs requêtes documentent des pièges/bugs potentiels trouvés en lisant le code (voir leurs champs 'description').",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Statique (location /)",
+      "description": "location / : root ./www, index index.html, methods GET, autoindex on.",
+      "item": [
+        {
+          "name": "GET / (index.html attendu)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 + text/html\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"text/html\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /index.html (explicite)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/index.html"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET fichier inexistant -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/nope-does-not-exist.html",
+            "description": "Piège : webserv.conf déclare `error_page 404 /errors/404.html` mais ce fichier n'existe PAS sur disque (seuls 303.html, 401.html, 5xx.html sont présents dans www/errors/). Vérifie que le serveur ne plante pas / ne renvoie pas 500 quand la page d'erreur configurée est absente."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404 et pas de crash (pas 500)\", () => {",
+                  "  pm.expect(pm.response.code).to.eql(404);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST / -> 405 (methods GET only)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/",
+            "body": {
+              "mode": "raw",
+              "raw": "test"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"405\", () => pm.response.to.have.status(405));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE / -> 405",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"405\", () => pm.response.to.have.status(405));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Path traversal simple",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/../../../etc/passwd",
+            "description": "Le chemin doit être normalisé/bloqué avant d'atteindre le filesystem réel."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"pas de fuite de /etc/passwd\", () => {",
+                  "  pm.expect(pm.response.code).to.not.eql(200);",
+                  "  pm.expect(pm.response.text()).to.not.include(\"root:\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Path traversal encodé (%2e%2e)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/%2e%2e/%2e%2e/%2e%2e/etc/passwd",
+            "description": "Même test que le précédent mais avec les points encodés en URL — sert à vérifier que le decoding est fait AVANT la normalisation du chemin, pas après."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"pas de fuite de /etc/passwd\", () => {",
+                  "  pm.expect(pm.response.code).to.not.eql(200);",
+                  "  pm.expect(pm.response.text()).to.not.include(\"root:\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Double slash //index.html",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}//index.html"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"statut observé\", () => { console.log(pm.response.code); pm.expect(pm.response.code).to.be.oneOf([200, 301, 404]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Répertoire inexistant sous / -> 404/403",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/somefakedir/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"bloqué\", () => pm.expect(pm.response.code).to.be.oneOf([403, 404]));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Fichiers (location /files, autoindex on)",
+      "description": "location /files : root ./www/files, methods GET, autoindex on.",
+      "item": [
+        {
+          "name": "GET /files/ (listing auto-généré)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/files/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 + liste contient hello.txt\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.text()).to.include(\"hello.txt\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /files/hello.txt",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/files/hello.txt"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 + corps non vide\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.text().length).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /files/doesnotexist.txt -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/files/doesnotexist.txt"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /files/ -> 405 (GET only)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/files/",
+            "body": {
+              "mode": "raw",
+              "raw": "x"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"405\", () => pm.response.to.have.status(405));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /files/hello.txt -> 405",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/files/hello.txt"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"405\", () => pm.response.to.have.status(405));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Uploads (location /uploads) - ATTENTION: POST non implémenté côté serveur",
+      "description": "location /uploads : root ./www/uploads, methods GET POST DELETE, upload_dir ./www/uploads, client_max_body_size 50M. IMPORTANT: `upload_dir` est parsé par la config mais jamais utilisé (aucun membre/getter dans Location, aucune branche dans Parser::parseDirective). StaticHandler ne lit JAMAIS le corps de la requête (`_request.getBody()` n'est appelé nulle part dans StaticHandler.cpp) : un POST tombe simplement dans le même chemin qu'un GET sur la ressource ciblée. `client_max_body_size` est stocké (getMaxBodySize()) mais jamais comparé à quoi que ce soit : le 413 n'existe nulle part dans le code. Cette section teste donc l'écart entre le comportement DOCUMENTÉ (conf) et le comportement RÉEL (code).",
+      "item": [
+        {
+          "name": "POST /uploads/ (dossier existant) -> PAS un upload, traité comme un GET sur le dossier",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "text/plain"
+              }
+            ],
+            "url": "{{base_url}}/uploads/",
+            "body": {
+              "mode": "raw",
+              "raw": "contenu de test pour upload brut"
+            },
+            "description": "BUG/GAP: la requête vise `/uploads/` qui existe déjà comme dossier -> StaticHandler prend la branche S_ISDIR (comme pour un GET), le corps du POST est ignoré. Aucun fichier n'est créé, jamais de 201. Attendu réel: 403 (pas d'index/autoindex déclaré sur cette location) ou 200 si un comportement par défaut sert un listing - observe ce qui sort vraiment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"PAS un 201 (upload non implémenté)\", () => {",
+                  "  console.log(\"status observé:\", pm.response.code, \"- devrait être 403/404, jamais 201\");",
+                  "  pm.expect(pm.response.code).to.not.eql(201);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pré-requis manuel: place un fichier dans www/uploads/ avant les tests GET/DELETE ci-dessous",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/uploads/{{last_upload_filename}}",
+            "description": "Comme POST n'écrit jamais rien sur disque, les tests GET/DELETE qui suivent ont besoin d'un fichier déposé manuellement AVANT de lancer la collection : `cp www/files/hello.txt www/uploads/manual_test.txt` puis mets `last_upload_filename = manual_test.txt` dans l'environnement Postman."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 si last_upload_filename est renseigné et le fichier existe\", () => {",
+                  "  if (!pm.environment.get(\"last_upload_filename\")) {",
+                  "    console.warn(\"last_upload_filename vide - dépose un fichier manuellement dans www/uploads/ d'abord\");",
+                  "    return;",
+                  "  }",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET fichier inexistant -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/uploads/doesnotexist.bin"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE du fichier déposé manuellement -> 204",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/uploads/{{last_upload_filename}}",
+            "description": "StaticHandler.cpp: succès = 204 corps vide (pas 200). C'est un DELETE générique sur fichier statique, rien de spécifique à 'upload'."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204 si last_upload_filename renseigné\", () => {",
+                  "  if (!pm.environment.get(\"last_upload_filename\")) return;",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE deux fois de suite (idempotence) -> 404 la seconde fois",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/uploads/{{last_upload_filename}}",
+            "description": "Que se passe-t-il si on supprime un fichier déjà supprimé ? Le stat() initial doit échouer -> 404 propre, pas un crash/500."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404 propre, pas de 500\", () => {",
+                  "  if (!pm.environment.get(\"last_upload_filename\")) return;",
+                  "  pm.expect(pm.response.code).to.eql(404);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT sur /uploads -> 405 (PUT absent des methods)",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{base_url}}/uploads/x.txt",
+            "body": {
+              "mode": "raw",
+              "raw": "x"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"405\", () => pm.response.to.have.status(405));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GAP CONFIRMÉ: corps > 50M sur /uploads/ n'est PAS rejeté en 413",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/uploads/",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "description": "GAP: `client_max_body_size` (getMaxBodySize()) n'est comparé nulle part dans le code à la taille du corps reçu - aucun chemin ne renvoie 413. Un corps de 51 Mo devrait, selon webserv.conf, être refusé ; en pratique il ne le sera pas (et de toute façon rien n'est sauvegardé, cf. premher test de ce dossier). Génère le fichier avec: head -c 51000000 /dev/urandom > /tmp/big.bin puis attache-le en body."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"confirme le gap: pas de 413\", () => {",
+                  "  console.log(\"status observé:\", pm.response.code, \"- si jamais 413, le gap a été corrigé, mets à jour cette description\");",
+                  "  pm.expect(pm.response.code).to.not.eql(413);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GAP: POST sans Content-Length -> 411 attendu (pas de chunked supporté)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Transfer-Encoding",
+                "value": "chunked"
+              }
+            ],
+            "url": "{{base_url}}/uploads/",
+            "body": {
+              "mode": "raw",
+              "raw": "test sans content-length explicite"
+            },
+            "description": "Request.cpp: un corps présent sans Content-Length renvoie 411 Length Required. Le chunked Transfer-Encoding n'est pas géré du tout - vérifie que Postman/curl n'arrive même pas à déclencher un comportement chunked ici, ou observe le vrai statut."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"411 ou comportement observé\", () => {",
+                  "  console.log(\"status observé:\", pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Redirection (location /old)",
+      "description": "location /old { return 301 /files; } — cible mise à jour (voir webserv.conf) ; le Parser fixe désormais getCurrentLocation().setReturn(true), donc la redirection est bien appliquée (avant ce fix, le return restait inerte).",
+      "item": [
+        {
+          "name": "GET /old sans suivre -> 301 vers /files",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/old"
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"301 + Location: /files\", () => {",
+                  "  pm.response.to.have.status(301);",
+                  "  pm.expect(pm.response.headers.get(\"Location\")).to.include(\"/files\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /old en suivant la redirection -> /files existe (autoindex on) -> 200",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/old",
+            "description": "Vérifie que le paramètre global 'Automatically follow redirects' est actif dans Postman pour ce test, sinon fais-le manuellement. Contrairement à l'ancienne cible /new (inexistante), /files est une location réelle avec autoindex on : la redirection doit donc aboutir à un listing 200, pas à un 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"finit en 200 (redirigé vers /files, qui existe)\", () => {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Virtual Hosts (routage par Host)",
+      "description": "server1: listen 8090+8110, server_name localhost (cgi .py + .php, DELETE sur /cgi-bin). server2: listen 8110 seulement, server_name tchoutchou (cgi .py uniquement, pas de DELETE sur /cgi-bin).",
+      "item": [
+        {
+          "name": "Port 8110, Host: localhost -> server1",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Host",
+                "value": "{{host_localhost}}"
+              }
+            ],
+            "url": "{{base_url_alt}}/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Port 8110, Host: tchoutchou -> server2",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Host",
+                "value": "{{host_tchoutchou}}"
+              }
+            ],
+            "url": "{{base_url_alt}}/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Port 8110, Host inconnu -> quel serveur répond par défaut ?",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Host",
+                "value": "foobar.example"
+              }
+            ],
+            "url": "{{base_url_alt}}/",
+            "description": "webserv doit choisir un 'default server' pour ce port quand aucun server_name ne matche. Observe lequel des deux blocks répond (généralement le premier déclaré pour ce port)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"répond quand même (pas de crash)\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Port 8090, Host: tchoutchou (n'écoute pas ce port) -> fallback server1",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Host",
+                "value": "{{host_tchoutchou}}"
+              }
+            ],
+            "url": "{{base_url}}/",
+            "description": "server2 n'a pas de `listen 8090`. Ce Host ne peut donc matcher aucun bloc sur ce port : server1 (le seul lié à 8090) doit répondre, Host ignoré."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 malgré le Host mismatch\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /cgi-bin/serve.py, Host: tchoutchou -> 405",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Host",
+                "value": "{{host_tchoutchou}}"
+              }
+            ],
+            "url": "{{base_url_alt}}/cgi-bin/serve.py",
+            "description": "server2: location /cgi-bin { methods GET POST } — pas de DELETE."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"405\", () => pm.response.to.have.status(405));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /cgi-bin/serve.py, Host: localhost -> autorisé (dispatch au script)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Host",
+                "value": "{{host_localhost}}"
+              }
+            ],
+            "url": "{{base_url_alt}}/cgi-bin/serve.py",
+            "description": "server1 autorise DELETE sur /cgi-bin, la requête doit atteindre serve.py::Delete(). Sans PATH_INFO, le script renvoie 400 (voir dossier 6)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"atteint le script (400, pas 405)\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. CGI Python - /cgi-bin/serve.py (articles)",
+      "description": "API 'articles' en Python. Base seedée avec 5 articles (id 1-5, lang en/fr).",
+      "item": [
+        {
+          "name": "GET tous les articles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/cgi-bin/serve.py"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 + tableau JSON\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json()).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET article par id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/cgi-bin/serve.py/article/1"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET article inexistant -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/cgi-bin/serve.py/article/9999"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET article id non-numérique -> exception attrapée -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/cgi-bin/serve.py/article/abc",
+            "description": "int(res[-1]) lève une ValueError ; le code l'attrape (try/except) et renvoie 404. Vérifie que c'est bien le cas."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404 (pas 500/crash)\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET filtré par langue (?lang=fr)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/cgi-bin/serve.py?lang=fr"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET langue invalide (?lang=de) -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/cgi-bin/serve.py?lang=de"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET query_string sans '=' -> crash CGI non catché",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/cgi-bin/serve.py?lang",
+            "description": "PIÈGE : `query_string.split('=')` donne `['lang']`, donc `res[1]` lève un IndexError qui N'EST PAS catché dans cette branche (le try/except ne couvre que la requête SQL, pas le split). Le script Python plante avant d'écrire un seul header CGI. Vérifie comment le serveur webserv gère un CGI qui meurt sans avoir rien écrit sur stdout (attendu: 500, à confirmer que ce n'est pas un timeout/hang)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"le serveur ne doit pas se bloquer/planter (500 attendu)\", () => {",
+                  "  console.log(\"status observé:\", pm.response.code);",
+                  "  pm.expect(pm.response.code).to.be.oneOf([500, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST JSON valide -> 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/cgi-bin/serve.py",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\":\"Test Postman\",\"lang\":\"fr\",\"content\":\"Contenu de test\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 + id capturé\", () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  const json = pm.response.json();",
+                  "  pm.environment.set(\"last_article_id\", json.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST JSON incomplet (manque 'content') -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/cgi-bin/serve.py",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\":\"x\",\"lang\":\"fr\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST x-www-form-urlencoded -> 201",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/cgi-bin/serve.py",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "title",
+                  "value": "Test urlencoded"
+                },
+                {
+                  "key": "lang",
+                  "value": "en"
+                },
+                {
+                  "key": "content",
+                  "value": "hello"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST multipart/form-data (sans fichier, juste des champs) -> 201",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/cgi-bin/serve.py",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "Test multipart",
+                  "type": "text"
+                },
+                {
+                  "key": "lang",
+                  "value": "fr",
+                  "type": "text"
+                },
+                {
+                  "key": "content",
+                  "value": "contenu",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST sans Content-Type -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": ""
+              }
+            ],
+            "url": "{{base_url}}/cgi-bin/serve.py",
+            "body": {
+              "mode": "raw",
+              "raw": "title=x&lang=fr&content=y"
+            },
+            "description": "Force la désactivation du header Content-Type auto-généré par Postman (décoche-le dans l'onglet Headers) pour vraiment tester ce cas."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST content-type non supporté (text/plain) -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "text/plain"
+              }
+            ],
+            "url": "{{base_url}}/cgi-bin/serve.py",
+            "body": {
+              "mode": "raw",
+              "raw": "n'importe quoi"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT article valide -> 204",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/cgi-bin/serve.py/article/{{last_article_id}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\":\"Modifié\",\"lang\":\"fr\",\"content\":\"Nouveau contenu\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204 si last_article_id renseigné\", () => {",
+                  "  if (!pm.environment.get(\"last_article_id\")) return;",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT id invalide (0) -> 400",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/cgi-bin/serve.py/article/0",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\":\"x\",\"lang\":\"fr\",\"content\":\"y\"}"
+            },
+            "description": "Put() vérifie `id <= 0` explicitement -> 400."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT id inexistant -> 404",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/cgi-bin/serve.py/article/999999",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\":\"x\",\"lang\":\"fr\",\"content\":\"y\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404 (rowcount == 0)\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE article -> 204",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/cgi-bin/serve.py/article/{{last_article_id}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204 si last_article_id renseigné\", () => {",
+                  "  if (!pm.environment.get(\"last_article_id\")) return;",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE avec segment != 'article' -> BUG potentiel ('in' au lieu de '==')",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/cgi-bin/serve.py/a/1",
+            "description": "PIÈGE / BUG À VÉRIFIER : Delete() fait `if info[0] in \"article\" and ...` — c'est un test d'appartenance de SOUS-CHAINE, pas d'égalité. Donc info[0] == 'a' (ou 'art', 'cle', 'ticle'...) est considéré comme valide alors que ce n'est pas le mot 'article' exact. Résultat attendu si le bug est présent : la requête est acceptée (204 ou tentative de DELETE sur l'id 1) au lieu d'un 400. Documente ce que tu observes."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"observe le comportement réel (bug potentiel)\", () => {",
+                  "  console.log(\"status observé:\", pm.response.code, \"- si 204, le bug 'in' vs '==' est confirmé\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE id non-numérique -> crash Python non catché",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/cgi-bin/serve.py/article/abc",
+            "description": "`int(id) > 0` dans la condition lève une ValueError non catchée si info[0]=='article' passe. Vérifie que ça ne fait pas planter/bloquer le serveur."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"pas de hang, un statut est renvoyé\", () => {",
+                  "  console.log(\"status observé:\", pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Méthode non supportée (PATCH) -> 400 (pas 405 !)",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{base_url}}/cgi-bin/serve.py",
+            "description": "Piège : le `match` Python renvoie _bad_request() (400) pour toute méthode inconnue, alors que index.php (PHP) renvoie 405 dans le même cas. Incohérence entre les deux CGI à connaître... si PATCH atteint seulement le script (webserv lui-même pourrait déjà bloquer avant avec 405 puisque methods ne liste que GET POST DELETE dans /cgi-bin)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"observe la source du refus (webserv 405 ou script 400)\", () => {",
+                  "  console.log(\"status observé:\", pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7. CGI PHP - /cgi-bin/php/index.php (catalogue images)",
+      "description": "API 'catalogue d'images'. Rappel: location /cgi-bin autorise seulement GET POST DELETE (pas PUT), alors que index.php implémente aussi PUT en interne.",
+      "item": [
+        {
+          "name": "GET liste toutes les images",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/cgi-bin/php/index.php"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 + tableau JSON\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json()).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET image par id (si existe)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/cgi-bin/php/index.php/1"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 ou 404\", () => pm.expect(pm.response.code).to.be.oneOf([200, 404]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET id inexistant -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/cgi-bin/php/index.php/999999"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET id NON numérique -> comportement surprenant (liste tout, PAS 404!)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/cgi-bin/php/index.php/abc",
+            "description": "PIÈGE : `ctype_digit($params[0])` est false pour 'abc', donc $id reste null, et Get($db, null) exécute la branche 'liste toutes les images' -> 200 avec un tableau complet, PAS un 404 comme on pourrait s'y attendre pour un id invalide. À documenter comme comportement (voulu ou pas ?)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 (liste complète, pas 404)\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json()).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST multipart, image valide (PNG)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/cgi-bin/php/index.php",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "description": "Attache un vrai fichier .png/.jpg/.webp manuellement dans l'onglet Body."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 + id capturé\", () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  const json = pm.response.json();",
+                  "  pm.environment.set(\"last_image_id\", json.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST multipart, mimetype non supporté -> 415",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/cgi-bin/php/index.php",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "description": "Attache un fichier .gif ou .txt (mimetype hors de la table $imgExt = jpeg/png/webp) pour déclencher le 415."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"415\", () => pm.response.to.have.status(415));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST multipart sans fichier -> 400",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/cgi-bin/php/index.php",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "notimage",
+                  "value": "x",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST corps brut, Content-Type image/png -> 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "image/png"
+              }
+            ],
+            "url": "{{base_url}}/cgi-bin/php/index.php",
+            "body": {
+              "mode": "file",
+              "file": {}
+            },
+            "description": "Sélectionne un vrai fichier PNG binaire en body (mode 'binary' dans Postman)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST corps brut vide -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "image/png"
+              }
+            ],
+            "url": "{{base_url}}/cgi-bin/php/index.php",
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST corps brut, content-type non supporté (application/pdf) -> 415",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/pdf"
+              }
+            ],
+            "url": "{{base_url}}/cgi-bin/php/index.php",
+            "body": {
+              "mode": "raw",
+              "raw": "%PDF-1.4 fake"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"415\", () => pm.response.to.have.status(415));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST corps entre 8MB et 10MB -> 413 (limite CACHÉE dans le PHP, pas dans le conf)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "image/png"
+              }
+            ],
+            "url": "{{base_url}}/cgi-bin/php/index.php",
+            "body": {
+              "mode": "file",
+              "file": {}
+            },
+            "description": "PIÈGE : index.php vérifie `$content_length > 8388608` (8 Mo) codé en dur, alors que /cgi-bin n'a AUCUN client_max_body_size dédié dans webserv.conf et hérite donc du 10M global du server block. Un corps de 9 Mo serait accepté par webserv (< 10M) mais rejeté par le PHP (> 8M) avec 413. Attache un fichier de ~9 Mo binaire en body pour vérifier. Génère-le avec: head -c 9000000 /dev/urandom > /tmp/9mo.bin"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"413 (limite PHP à 8Mo, pas 10Mo)\", () => pm.response.to.have.status(413));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT -> 405 renvoyé par webserv AVANT le PHP (PUT absent de methods)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "image/png"
+              }
+            ],
+            "url": "{{base_url}}/cgi-bin/php/index.php/{{last_image_id}}",
+            "body": {
+              "mode": "file",
+              "file": {}
+            },
+            "description": "PIÈGE : location /cgi-bin déclare `methods GET POST DELETE` — PUT n'y est pas, donc webserv doit rejeter la requête en 405 SANS JAMAIS exécuter le PHP, alors que Put() dans index.php est parfaitement fonctionnel et ne sera donc jamais atteignable via le serveur tel que configuré actuellement. Vérifie que c'est bien un 405 'server-side' (pas un 200/204 qui prouverait que le PHP a tourné)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"405\", () => pm.response.to.have.status(405));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE image existante -> 204 (test de non-régression du bug 'break' manquant)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/cgi-bin/php/index.php/{{last_image_id}}",
+            "description": "Régression : ce test doit renvoyer un vrai 204, pas un 405 - c'est exactement le bug du `break;` manquant dans le switch de main() qu'on vient de corriger."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204 si last_image_id renseigné\", () => {",
+                  "  if (!pm.environment.get(\"last_image_id\")) return;",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE id inexistant -> 404",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/cgi-bin/php/index.php/999999"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE sans id -> 400",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/cgi-bin/php/index.php"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Méthode non supportée (PATCH) -> 405",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{base_url}}/cgi-bin/php/index.php",
+            "description": "PATCH n'est ni dans les methods de la location, ni dans le switch PHP : les deux couches devraient renvoyer 405, à vérifier laquelle répond en premier."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"405\", () => pm.response.to.have.status(405));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SÉCURITÉ: .php demandé sur server2 (pas de mapping cgi .php) -> ne doit PAS servir le code source",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Host",
+                "value": "{{host_tchoutchou}}"
+              }
+            ],
+            "url": "{{base_url_alt}}/cgi-bin/php/index.php",
+            "description": "server2 (tchoutchou) ne déclare que `cgi .py` pour /cgi-bin, PAS `.php`. Si le serveur traite alors index.php comme un fichier STATIQUE au lieu de refuser/404, le code source PHP en clair (avec potentiellement des infos sensibles) serait exposé au client. C'est LE test de sécurité le plus important de cette collection."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"le code source PHP n'est PAS exposé en clair\", () => {",
+                  "  const body = pm.response.text();",
+                  "  pm.expect(body).to.not.include(\"<?php\");",
+                  "  console.log(\"status:\", pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "8. Cas limites HTTP (testables depuis Postman)",
+      "description": "Cas qui restent dans les limites d'un client HTTP 'normal' comme Postman (contrairement au dossier 9).",
+      "item": [
+        {
+          "name": "HEAD / -> méthode jamais déclarée dans une location -> 405/501",
+          "request": {
+            "method": "HEAD",
+            "header": [],
+            "url": "{{base_url}}/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"405 ou 501\", () => pm.expect(pm.response.code).to.be.oneOf([405, 501]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OPTIONS / -> méthode jamais déclarée -> 405/501",
+          "request": {
+            "method": "OPTIONS",
+            "header": [],
+            "url": "{{base_url}}/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"405 ou 501\", () => pm.expect(pm.response.code).to.be.oneOf([405, 501]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "URL très longue -> 414 ?",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/{{long_path}}",
+            "description": "Pre-request script génère un segment de 9000 caractères dans la variable {{long_path}} pour cette requête."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set(\"long_path\", \"a\".repeat(9000));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"414 ou au moins pas de crash\", () => {",
+                  "  console.log(\"status:\", pm.response.code);",
+                  "  pm.expect(pm.response.code).to.be.oneOf([414, 400, 404]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Query string + PATH_INFO combinés sur CGI Python",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/cgi-bin/serve.py/article/1?lang=fr"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "9. À tester hors Postman (curl / nc / test.sh) - lire la description",
+      "description": "Postman est un client HTTP conforme : il ne peut PAS émettre de requêtes malformées.\nLes cas suivants nécessitent curl, netcat, ou le test.sh déjà présent à la racine du repo :\n\n- Ligne de requête malformée: printf 'GET / HTTPX\\r\\n\\r\\n' | nc 127.0.0.1 8090\n- Version HTTP inconnue: printf 'GET / HTTP/9.9\\r\\nHost: x\\r\\n\\r\\n' | nc 127.0.0.1 8090\n- Host manquant en HTTP/1.1 (doit être 400): printf 'GET / HTTP/1.1\\r\\n\\r\\n' | nc 127.0.0.1 8090\n- Content-Length dupliqué/contradictoire: printf 'POST /uploads/ HTTP/1.1\\r\\nHost: x\\r\\nContent-Length: 5\\r\\nContent-Length: 100\\r\\n\\r\\nhello' | nc 127.0.0.1 8090\n- Transfer-Encoding: chunked (POST /uploads/ avec curl -H 'Transfer-Encoding: chunked' -d ...)\n- Connection: keep-alive + pipelining de plusieurs requêtes sur le même socket (test.sh ne le fait pas nativement, utilise nc avec plusieurs requêtes collées)\n- Corps envoyé plus lentement que Content-Length (client lent) : pour vérifier les timeouts, PAS pour faire un DoS réel\n- ./test.sh est déjà en place pour le CRUD de base côté curl (-X, -H, -d, -f) - complète-le plutôt que de le dupliquer pour ces cas bruts.",
+      "item": []
+    }
+  ]
+}

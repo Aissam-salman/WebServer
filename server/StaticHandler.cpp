@@ -163,6 +163,7 @@ std::string StaticHandler::generateAutoindex(const std::string& path) const
 Response StaticHandler::handle() const
 {
     //redirection configurée dans la location
+
     if (_location.getReturn())
     {
         Response resp(_location.getReturnErrorCode(), "", "");  //construit la reponse avec le code de redir
@@ -197,6 +198,7 @@ Response StaticHandler::handle() const
     //c'est un dossier
     if (S_ISDIR(st.st_mode))
     {
+        //INFO: is POST methods        //
         // chercher l'index
         std::string index_path = path;
         if (index_path[index_path.length() - 1] != '/') // mettre un / a la fin si ya pas ex: "/doc/file + /"

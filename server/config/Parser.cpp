@@ -349,6 +349,7 @@ void				Parser::setupReturn(void) {
 	if (errno == ERANGE || *end != '\0' || code < 300 || code > 599) // TODO : VERIFY FOR THE ALLOWED ERROR CODES FOR REDIR
 		throw std::runtime_error(ERRS_PARSER_INVALID_ERROR_CODE + _temp_vector[1]._value);
 
+	getCurrentLocation().setReturn(true);
 	getCurrentLocation().setReturnErrorCode(code);
 	getCurrentLocation().setReturnPath( _temp_vector[2]._value );
 }
