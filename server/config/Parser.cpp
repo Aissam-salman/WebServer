@@ -181,7 +181,7 @@ void				Parser::setupCGI(void) {
 	// TODO : Change condition if doing more than one CGI
 	if (extension == ".py" && !endsWith(interpreter, "/python3"))
 		throw std::runtime_error(ERRS_PARSER_INVALID_SYNTAX + extension);
-	if (extension == ".php" && !endsWith(interpreter, "/php-cgi"))
+	else if (extension == ".php" && !endsWith(interpreter, "/php-cgi"))
 		throw std::runtime_error(ERRS_PARSER_INVALID_SYNTAX + extension);
 
 	// Maps the extension to its interpreter for this location
