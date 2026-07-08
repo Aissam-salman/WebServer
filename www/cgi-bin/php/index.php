@@ -166,7 +166,7 @@ function Put(SQLite3 $db, string $storageDir, array $imgExt, ?int $id): void
 		jsonResponseErr(415, "Unsupported content type: " . $contentType);
 	}
 
-	$filepathOld = $row["filepath"];
+	$filepathOld = $row["path"];
 	if (file_exists($filepathOld)) {
 		unlink($filepathOld);
 	}
@@ -213,7 +213,7 @@ function Delete(SQLite3 $db, string $storageDir, ?int $id): void
 		jsonResponseErr(404, "Not found");
 	}
 
-	$filepathOld = $row["filepath"];
+	$filepathOld = $row["path"];
 	if (file_exists($filepathOld)) {
 		unlink($filepathOld);
 	}
@@ -264,6 +264,7 @@ function main(): void
 			break;
 		case "DELETE":
 			Delete($db, $storageDir, $id);
+			break;
 		default:
 			jsonResponseErr(405, "Method not allowed");
 	}
