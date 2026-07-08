@@ -7,8 +7,8 @@
 #include "Response.hpp"
 
 #define DEBUG 0
-#define DEBUG_REQUEST 0
-#define DEBUG_RESPONSE 0
+#define DEBUG_REQUEST 1
+#define DEBUG_RESPONSE 1
 
 #define RUN 1
 
