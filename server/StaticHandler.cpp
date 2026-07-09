@@ -237,12 +237,13 @@ Response StaticHandler::handle() const {
         // recup filename,
         size_t start_pos = _request.getBody().find(boundary);
         std::string filename;
-        //INFO: I don't handle multiple files uploads but it's fine, not for this night
+        // INFO: I don't handle multiple files uploads but it's fine, not for
+        // this night
         while (start_pos != std::string::npos) {
           size_t filename_pos =
               _request.getBody().find("filename=", start_pos + boundary.size());
           if (filename_pos == std::string::npos)
-              return Response(400, "Bad Request");
+            return Response(400, "Bad Request");
 
           size_t start_filename =
               _request.getBody().find("\"", filename_pos + 8);
@@ -253,35 +254,33 @@ Response StaticHandler::handle() const {
           }
 
           if (end_filename == 0)
-              return Response(400, "Bad Request");
+            return Response(400, "Bad Request");
 
           filename = _request.getBody().substr(
               start_filename + 1, end_filename - start_filename - 1);
 
-
 #if DEBUG == 1
-          debug(filename,
-                "filename_value", BOLD_GREEN);
+          debug(filename, "filename_value", BOLD_GREEN);
 #endif
           if (!filename.empty())
             break;
           start_pos =
               _request.getBody().find(boundary, start_pos + boundary.size());
-
         }
+
 #if DEBUG == 1
         _location.printLocation();
 #endif
 
         _location.getRootPath();
-    
-        // build path   document root with upload dir? or location 
-        // isSafePath 
-      // check the format of file, no script runnable
-        // try to access ? 
-        // not exists ok create 
-                // else 400 
-      // return response 201 Created
+
+        // build path   document root with upload dir? or location
+        // isSafePath
+        // check the format of file, no script runnable
+        // try to access ?
+        // not exists ok create
+        // else 400
+        // return response 201 Created
       }
       return Response(400, "Bad Request");
     }
