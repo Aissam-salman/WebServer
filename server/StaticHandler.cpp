@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <dirent.h>
 #include <fstream>
+#include <ios>
 #include <sstream>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -46,6 +47,27 @@ std::string StaticHandler::buildPath() const {
   if (!resource.empty() && resource[0] == '/')
     resource = resource.substr(1);
   return root + resource;
+}
+
+std::string
+StaticHandler::getMimeTypeAllowForPost(const std::string &path) const {
+  size_t dot = path.rfind('.'); // trouve le dernier '.' d'extention
+  if (dot == std::string::npos)
+    return "application/octet-stream";
+  std::string ext = path.substr(dot); // recup l'extention
+  if (ext == ".png")
+    return "image/png";
+  if (ext == ".jpg" || ext == ".jpeg")
+    return "image/jpeg";
+  if (ext == ".gif")
+    return "image/gif";
+  if (ext == ".ico")
+    return "image/x-icon";
+  if (ext == ".txt")
+    return "text/plain";
+  if (ext == ".pdf")
+    return "application/pdf";
+  return "application/octet-stream";
 }
 
 std::string StaticHandler::getMimeType(const std::string &path) const {
@@ -180,6 +202,25 @@ std::string extractBoundary(std::string header_content_type) {
   return boundary;
 }
 
+bool StaticHandler::isSafeFile(std::string &file_path,
+                               std::string &file_type) const {
+  std::string mimetype = this->getMimeTypeAllowForPost(file_path);
+#if DEBUG == 1
+  debug(file_path, "file_path", RED);
+  debug(file_type, "filetype", RED);
+  debug(mimetype, "mimetype", RED);
+#endif
+  if (mimetype == file_type && mimetype != "application/octet-stream")
+    return true;
+  return false;
+}
+
+bool StaticHandler::isFileAlreadyExist(std::string &file_path) const {
+  if (access(file_path.c_str(), R_OK) == 0)
+    return false;
+  return true;
+}
+
 Response StaticHandler::handle() const {
   // redirection configurée dans la location
 
@@ -200,15 +241,17 @@ Response StaticHandler::handle() const {
 
   // construire et vérifier le path
   std::string path = buildPath();
-#if DEBUG_RESPONSE == 1
-  std::cout << BOLD_CYAN << "PATH RESPONSE = " << path << endofline;
-#endif
+
+  // #if DEBUG_RESPONSE == 1
+  //   std::cout << BOLD_CYAN << "PATH RESPONSE = " << path << endofline;
+  // #endif
+
   if (!isSafePath(path))
     throw std::runtime_error("403");
 
-#if DEBUG_RESPONSE == 1
-  std::cout << BOLD_CYAN << "JE PASSE ICI" << endofline;
-#endif
+  // #if DEBUG_RESPONSE == 1
+  //   std::cout << BOLD_CYAN << "JE PASSE ICI" << endofline;
+  // #endif
 
   struct stat st;
   if (stat(path.c_str(), &st) != 0) // recup les stats du fichier
@@ -225,6 +268,7 @@ Response StaticHandler::handle() const {
       size_t header_content_type_pos = _request.getHeaders()
                                            .find("Content-Type")
                                            ->second.find("multipart/form-data");
+
       // accept just multipart/form-data for POST
       if (header_content_type_pos != std::string::npos) {
         std::string boundary =
@@ -232,11 +276,12 @@ Response StaticHandler::handle() const {
 
         if (boundary.empty())
           return Response(400, "Bad Request");
-        debug(_request.getBody().substr(0, 400), "bodyBrut", WHITE);
 
         // recup filename,
         size_t start_pos = _request.getBody().find(boundary);
         std::string filename;
+        std::string file_type;
+        size_t end;
         // INFO: I don't handle multiple files uploads but it's fine, not for
         // this night
         while (start_pos != std::string::npos) {
@@ -262,25 +307,50 @@ Response StaticHandler::handle() const {
 #if DEBUG == 1
           debug(filename, "filename_value", BOLD_GREEN);
 #endif
-          if (!filename.empty())
+          if (!filename.empty()) {
+            size_t start =
+                _request.getBody().find("Content-Type: ", end_filename);
+            if (start == std::string::npos)
+              return Response(400, "Bad Request");
+            end = _request.getBody().find("\r\n", start);
+            if (end == std::string::npos)
+              return Response(400, "Bad Request");
+            file_type = _request.getBody().substr(start + 14, end - start - 14);
             break;
+          }
           start_pos =
               _request.getBody().find(boundary, start_pos + boundary.size());
         }
 
+        std::string file_path = _location.getRootPath() + "/" + filename;
+
+        if (!isSafePath(file_path))
+          return Response(400, "Bad Request");
+
+        if (!isSafeFile(file_path, file_type))
+          return Response(400, "Bad Request");
+
+        if (!isFileAlreadyExist(file_path))
+          return Response(500, "Already exist");
+
+        size_t start_file = _request.getBody().find("\r\n\r\n", end);
+        size_t end_file = _request.getBody().find(boundary, start_file);
+        std::string file_content = _request.getBody().substr(start_file + 4, end_file - start_file - 8);
+
 #if DEBUG == 1
-        _location.printLocation();
+        debug(start_file, "start", YELLOW);
+        debug(end_file, "end", YELLOW);
 #endif
 
-        _location.getRootPath();
-
-        // build path   document root with upload dir? or location
-        // isSafePath
-        // check the format of file, no script runnable
-        // try to access ?
-        // not exists ok create
-        // else 400
-        // return response 201 Created
+        std::ofstream of;
+        of.open(file_path.c_str(), std::ios_base::binary);
+        if (of.is_open()) {
+            of << file_content;
+            of.close();
+        } else {
+          return Response(500, "Cannot upload new file");
+        }
+        return Response(201, "Created");
       }
       return Response(400, "Bad Request");
     }
