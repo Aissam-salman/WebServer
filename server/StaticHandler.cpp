@@ -2,7 +2,6 @@
 #include "Parser.hpp"
 #include "Response.hpp"
 #include "utils.hpp"
-#include <algorithm>
 #include <cstddef>
 #include <dirent.h>
 #include <fstream>
