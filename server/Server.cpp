@@ -262,7 +262,7 @@ void Server::clientRead(size_t &i, int fd) {
     closeClient(i, fd);
   else if (client.getStatus() == WRITTING) {
     try {
-      debug(client.getBufferRead(), "buffer_read", BLUE);
+      // debug(client.getBufferRead(), "buffer_read", BLUE);
       client._request.parseRequest(client.getBufferRead());
       // debug(client.getRequest().getHeaders().at("Transfer-Endoding"), "header", RED);
       // debug(client.getRequest().getBody(), "request", RED);

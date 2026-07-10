@@ -33,26 +33,37 @@ bool isChunked(const std::string &raw) {
     return false;
 }
 
-std::string decodeChunk(std::string &body_raw) {
-    std::string body;
-    size_t start = 0;
+std::string Request::decodeChunk(std::string &body_raw) {
 
-    // si size hex ,
-    // passe a ligne suivante et tu copy dans body jusque \r\n
-    // jusque 0\r\n\r\n
-    while (true) {
-        size_t end_hex = body_raw.find("\r\n");
+    // ON A LA TAILLE FINALE
+    std::string full_body;
+    size_t start = 0;
+    size_t ttl_size = 0;
+    size_t end = body_raw.find( "0\r\n\r\n");
+
+    // BOUCLE TANT QUE START EST INFERIEUR A LA TAILLE DU BODY
+    while (start < end) {
+
+        // ON TROUVE LE PROCHAIN BLOC D'INFO SIZE DU CHUNK
+        size_t end_hex = body_raw.find("\r\n", start);
         if (end_hex == std::string::npos)
             throw std::runtime_error("no hex");
-        std::string hex_val = body_raw.substr(start, end_hex);
-        if (hex_val == "0\r\n\r\n")
-            break;
-        size_t size = std::strtol(hex_val.c_str(), NULL, 16);
-        std::string chunk = body_raw.substr(start + hex_val.size() + 2, size);
-        body += chunk;
-        start += size;
+
+        // ON RECUPERE LA VALEUR EN HEXA ET ON LA CONVERTIT EN DECIMAL
+        std::string hex_val = body_raw.substr(start, end_hex - start);
+        size_t chunk_size = std::strtol(hex_val.c_str(), NULL, 16);
+        ttl_size += chunk_size;
+        start = end_hex + 2;
+
+        // DECOUPE DU BODY
+        std::string chunk_body = body_raw.substr(start, chunk_size);
+
+        // AJOUTE AU BODY COMPLET
+        full_body += chunk_body;
+        start += chunk_size + 2 ;
     }
-    return body;
+
+    return full_body;
 }
 
 void Request::parseRequest(const std::string &raw_request) {

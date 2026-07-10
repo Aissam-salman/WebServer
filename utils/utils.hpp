@@ -161,4 +161,6 @@ void debug(T var,std::string label, std::string color) {
     std::cerr  << color << "[DEBUG]->" << label << "=" << var << std::endl;
 }
 
+std::string extractBoundary(std::string header_content_type);
+
 #endif

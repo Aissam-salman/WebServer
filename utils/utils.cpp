@@ -129,3 +129,15 @@ Response    buildErrorResponse(int code, const MapIntStr& error_pages)
          << "<body><h1>" << code << " " << reason << "</h1>"
          << "<hr><p>webserv/1.0</p></body></html>";
     return Response(code, body.str(), "text/html");}
+
+
+std::string extractBoundary(std::string header_content_type) {
+  std::string word_start = "boundary=";
+  std::string boundary;
+  size_t pos = header_content_type.find(word_start);
+  if (pos != std::string::npos) {
+    pos += word_start.length();
+    boundary = header_content_type.substr(pos);
+  }
+  return boundary;
+}

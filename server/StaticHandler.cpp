@@ -190,17 +190,6 @@ std::string StaticHandler::generateAutoindex(const std::string &path) const {
 
 typedef std::map<std::string, std::string>::const_iterator headerIter;
 
-std::string extractBoundary(std::string header_content_type) {
-  std::string word_start = "boundary=";
-  std::string boundary;
-  size_t pos = header_content_type.find(word_start);
-  if (pos != std::string::npos) {
-    pos += word_start.length();
-    boundary = header_content_type.substr(pos);
-  }
-  return boundary;
-}
-
 bool StaticHandler::isSafeFile(std::string &file_path,
                                std::string &file_type) const {
   std::string mimetype = this->getMimeTypeAllowForPost(file_path);

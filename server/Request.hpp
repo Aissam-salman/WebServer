@@ -25,6 +25,7 @@ public:
   bool isCGI() const { return (resource.find("/cgi-bin/") == 0); }
   void parseRequest(const std::string &raw_request);
 
+  std::string decodeChunk(std::string &body_raw);
   const std::string &getMethod() const { return method; }
   const std::string &getResource() const { return resource; }
   const std::string &getHttpVersion() const { return http_version; }
