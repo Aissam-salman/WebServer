@@ -38,7 +38,6 @@ std::string Request::decodeChunk(std::string &body_raw) {
     // ON A LA TAILLE FINALE
     std::string full_body;
     size_t start = 0;
-    size_t ttl_size = 0;
     size_t end = body_raw.find( "0\r\n\r\n");
 
     // BOUCLE TANT QUE START EST INFERIEUR A LA TAILLE DU BODY
@@ -52,7 +51,6 @@ std::string Request::decodeChunk(std::string &body_raw) {
         // ON RECUPERE LA VALEUR EN HEXA ET ON LA CONVERTIT EN DECIMAL
         std::string hex_val = body_raw.substr(start, end_hex - start);
         size_t chunk_size = std::strtol(hex_val.c_str(), NULL, 16);
-        ttl_size += chunk_size;
         start = end_hex + 2;
 
         // DECOUPE DU BODY
@@ -113,6 +111,7 @@ void Request::parseRequest(const std::string &raw_request) {
         std::string tmp = raw_request.substr(separator + 4);
         body = decodeChunk(tmp);
     }
+
     if (isCGI())
         parseCgi_env();
 }

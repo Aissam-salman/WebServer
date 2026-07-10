@@ -6,7 +6,7 @@
 /*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/20 18:40:45 by alamjada          #+#    #+#             */
-/*   Updated: 2026/07/10 12:33:20 by alamjada         ###   ########.fr       */
+/*   Updated: 2026/07/10 18:47:02 by alamjada         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -62,7 +62,8 @@ bool Client::isRequestCompleted(void) {
     return false;
 
   size_t header_contentLength_pos = _buffer_read.find("Content-Length:");
-  if (header_contentLength_pos != std::string::npos) {
+  if (header_contentLength_pos != std::string::npos &&
+      header_contentLength_pos < header_end) {
     size_t len_start = header_contentLength_pos + 15;
     size_t len_end = _buffer_read.find("\r\n", len_start);
     std::string lenString = _buffer_read.substr(len_start, len_end - len_start);
@@ -70,13 +71,16 @@ bool Client::isRequestCompleted(void) {
     size_t body_size = _buffer_read.size() - (header_end + 4);
     return body_size >= len;
   }
-  //NOTE: if find end of chunk 
-  else if (_buffer_read.find("0\r\n\r\n") != std::string::npos) {
-    return true;
+
+  size_t chunked_pos = _buffer_read.find("Transfer-Encoding: chunked");
+  if (chunked_pos != std::string::npos && chunked_pos < header_end) {
+    // requete chunked : pas complete tant que le chunk terminal
+    // "0\r\n\r\n" n'est pas arrive dans le body (apres header_end)
+    return _buffer_read.find("0\r\n\r\n", header_end) != std::string::npos;
   }
-  else  {
-    return false;
-  }
+
+  // ni Content-Length ni chunked -> pas de body attendu (ex: GET)
+  return true;
 }
 
 void Client::setResponse(std::string &resp) {
