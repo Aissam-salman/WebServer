@@ -262,10 +262,10 @@ void Server::clientRead(size_t &i, int fd) {
     closeClient(i, fd);
   else if (client.getStatus() == WRITTING) {
     try {
+      debug(client.getBufferRead(), "buffer_read", BLUE);
       client._request.parseRequest(client.getBufferRead());
-#if DEBUG == 1
-      debug(client.getRequest(), "request", RED);
-#endif
+      // debug(client.getRequest().getHeaders().at("Transfer-Endoding"), "header", RED);
+      // debug(client.getRequest().getBody(), "request", RED);
       if (client._request.isCGI())
         handleCgi(client, fd);
       else

@@ -37,3 +37,8 @@ Point de départ : on gère pas du tout les requêtes chunked. Vérifié par gre
 ### Prochaine étape suggérée
 
 Relire `docs/06_FRAMING.md` et `docs/14_CGI.md` en détail, puis attaquer le point 1 (détection dans `isRequestCompleted`) avant le décodage lui-même — tant que la détection de "requête complète" n'est pas correcte pour le chunked, le reste ne peut pas être testé proprement.
+
+
+curl -v -X POST http://localhost:8090/uploads \
+  -H "Transfer-Encoding: chunked" \
+  -F "file=@$HOME/Pictures/test.png"

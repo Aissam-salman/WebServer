@@ -6,7 +6,7 @@
 /*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/20 18:40:45 by alamjada          #+#    #+#             */
-/*   Updated: 2026/07/10 11:46:43 by alamjada         ###   ########.fr       */
+/*   Updated: 2026/07/10 12:33:20 by alamjada         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -70,7 +70,13 @@ bool Client::isRequestCompleted(void) {
     size_t body_size = _buffer_read.size() - (header_end + 4);
     return body_size >= len;
   }
-  return true;
+  //NOTE: if find end of chunk 
+  else if (_buffer_read.find("0\r\n\r\n") != std::string::npos) {
+    return true;
+  }
+  else  {
+    return false;
+  }
 }
 
 void Client::setResponse(std::string &resp) {
