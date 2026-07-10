@@ -9,8 +9,8 @@
 #ifndef DEBUG
 # define DEBUG 0
 #endif
-#define DEBUG_REQUEST 1
-#define DEBUG_RESPONSE 1
+#define DEBUG_REQUEST 0
+#define DEBUG_RESPONSE 0
 
 #define RUN 1
 
