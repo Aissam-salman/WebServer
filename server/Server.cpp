@@ -263,6 +263,9 @@ void Server::clientRead(size_t &i, int fd) {
   else if (client.getStatus() == WRITTING) {
     try {
       client._request.parseRequest(client.getBufferRead());
+#if DEBUG == 1
+      debug(client.getRequest(), "request", RED);
+#endif
       if (client._request.isCGI())
         handleCgi(client, fd);
       else
@@ -344,6 +347,9 @@ void Server::loopPollFds(void) {
 
 // RUNS THE SERVER
 // TODO : Scale from one server to multiple server -> Make run in a "super-class" such as WebServer that can run through all the fds of all servers
+//FIX: need handle chunked request 
+// if in header Transfer-Encoding: chunked do the stuff
+// Format à décoder : <taille-hex>\r\n<datta>\r\n   ,terminé par 0\r\n\r\n
 void Server::run(std::vector<Listener>& listeners) {
   setupListeners(listeners);
 

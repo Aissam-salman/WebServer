@@ -6,22 +6,18 @@
 /*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/20 18:40:45 by alamjada          #+#    #+#             */
-/*   Updated: 2026/07/07 15:18:16 by alamjada         ###   ########.fr       */
+/*   Updated: 2026/07/10 11:46:43 by alamjada         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Client.hpp"
-#include "Cgi.hpp"
 #include "Request.hpp"
-#include "Response.hpp"
 #include "utils.hpp"
 #include <cstdlib>
-#include <iostream>
 #include <stdexcept>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <vector>
 
 Client::Client(void) : _request("8080", "0", "0000", "www") {}
 
