@@ -279,16 +279,17 @@ void Server::clientRead(size_t &i, int fd) {
 
 
           //GET LOCATION MATCH WITH URL, AND ADD SCRIPT FILENAME TO RUN EXECVE
-            Location loc = StaticHandler::findLocation(
-                _locations_vector, client._request.getResource());
-            std::string root_doc = loc.getRootPath();
-
-            std::map<std::string, std::string>::const_iterator script_name =
-                client._request.getCgi_env().find("SCRIPT_NAME");
-
-            if (script_name != client._request.getCgi_env().end()) {
-              client._request.addToCgiEnv( "SCRIPT_FILENAME", root_doc + script_name->second);
-            }
+            // Location loc = StaticHandler::findLocation(
+            //     _locations_vector, client._request.getResource());
+            // std::string root_doc = loc.getRootPath().substr(2);
+            //
+            // std::map<std::string, std::string>::const_iterator script_name =
+            //     client._request.getCgi_env().find("SCRIPT_NAME");
+            //
+            // if (script_name != client._request.getCgi_env().end()) {
+            //   client._request.addToCgiEnv( "SCRIPT_FILENAME", root_doc + script_name->second);
+            // }
+            //TODO: refaire buildPath ici 
 
 
             if (client._request.isCGI())
