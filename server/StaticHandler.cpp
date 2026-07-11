@@ -30,13 +30,13 @@ Location &StaticHandler::findLocation(std::vector<Location> &locs,
 StaticHandler::StaticHandler(const Request &req, std::vector<Location> &locs)
     : _request(req), _location(findLocation(locs, req.getResource())) {}
 
-std::string StaticHandler::buildPath() const {
-  std::string root = _location.getRootPath();
-  std::string resource = _request.getResource();
+std::string StaticHandler::resolvePath(Location &loc, const std::string &resource_in) {
+  std::string root = loc.getRootPath();
+  std::string resource = resource_in;
 
   // enlever le prefix de la location du resource
   // ex: location /static/, resource /static/img.png → /img.png
-  std::string loc_name = _location.getName();
+  std::string loc_name = loc.getName();
   if (resource.find(loc_name) == 0)
     resource = resource.substr(loc_name.size());
   // s'assurer que root se termine par /
@@ -46,6 +46,10 @@ std::string StaticHandler::buildPath() const {
   if (!resource.empty() && resource[0] == '/')
     resource = resource.substr(1);
   return root + resource;
+}
+
+std::string StaticHandler::buildPath() const {
+  return StaticHandler::resolvePath(_location, _request.getResource());
 }
 
 std::string

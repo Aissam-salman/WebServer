@@ -25,6 +25,7 @@ class StaticHandler {
     StaticHandler(const Request &req, std::vector<Location> &locs);
     Response handle() const;
     static Location &findLocation(std::vector<Location> &locs, const std::string &resource);
+    static std::string resolvePath(Location &loc, const std::string &resource);
 };
 
 #endif

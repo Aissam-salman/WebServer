@@ -6,7 +6,7 @@
 /*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/20 18:40:45 by alamjada          #+#    #+#             */
-/*   Updated: 2026/07/11 15:56:16 by alamjada         ###   ########.fr       */
+/*   Updated: 2026/07/11 19:25:28 by alamjada         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,6 +27,7 @@ Client::Client(int fd)
   _poll_listen.fd = fd;
   _poll_listen.events = POLLIN;
   _poll_listen.revents = 0;
+  _counter_trash = 0;
 }
 
 Client::Client(int fd, Request rq)
@@ -34,6 +35,7 @@ Client::Client(int fd, Request rq)
   _poll_listen.fd = fd;
   _poll_listen.events = POLLIN;
   _poll_listen.revents = 0;
+  _counter_trash = 0;
 }
 
 Client::Client(int fd, Request rq, long max_body_size)
@@ -41,6 +43,7 @@ Client::Client(int fd, Request rq, long max_body_size)
   _poll_listen.fd = fd;
   _poll_listen.events = POLLIN;
   _poll_listen.revents = 0;
+  _counter_trash = 0;
 }
 
 Client::Client(const Client &src) : _request(src._request) { *this = src; }
