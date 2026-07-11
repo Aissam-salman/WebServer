@@ -9,7 +9,7 @@
 std::ostream &endofline(std::ostream &os) { return os << RESET << std::endl; }
 
 size_t strToInt(std::string str) {
-  size_t val;
+  size_t val = 0;
   std::stringstream s(str);
   s >> val;
   return val;

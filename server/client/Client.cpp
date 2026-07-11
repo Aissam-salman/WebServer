@@ -6,7 +6,7 @@
 /*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/20 18:40:45 by alamjada          #+#    #+#             */
-/*   Updated: 2026/07/11 10:36:20 by alamjada         ###   ########.fr       */
+/*   Updated: 2026/07/11 11:37:44 by alamjada         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,7 +29,14 @@ Client::Client(int fd)
 }
 
 Client::Client(int fd, Request rq)
-    : _status(READING), _offset_send(0), _request(rq) {
+    : _status(READING), _offset_send(0), _max_body_size(20000000),_request(rq) {
+  _poll_listen.fd = fd;
+  _poll_listen.events = POLLIN;
+  _poll_listen.revents = 0;
+}
+
+Client::Client(int fd, Request rq, long max_body_size)
+    : _status(READING), _offset_send(0), _max_body_size(max_body_size),_request(rq) {
   _poll_listen.fd = fd;
   _poll_listen.events = POLLIN;
   _poll_listen.revents = 0;
@@ -45,7 +52,7 @@ bool Client::handleRecv(void) {
   char buffer[STD_BUFFER];
   ssize_t n = recv(_poll_listen.fd, buffer, STD_BUFFER, 0);
   if (n < 0)
-    throw std::runtime_error("recv fail.");
+    throw std::runtime_error("500");
   if (n == 0)
     return (_status = DONE, false);
 
@@ -68,13 +75,22 @@ bool Client::isRequestCompleted(void) {
     size_t len_end = _buffer_read.find("\r\n", len_start);
     std::string lenString = _buffer_read.substr(len_start, len_end - len_start);
     size_t len = strToInt(lenString);
-    //FIX : check if pass max body size throw 413
+
+    if (static_cast<long>(len) > _max_body_size)
+      throw std::runtime_error("413");
+    
     size_t body_size = _buffer_read.size() - (header_end + 4);
+
+    if (static_cast<long>(body_size) > _max_body_size)
+      throw std::runtime_error("413");
+
     return body_size >= len;
   }
 
   size_t chunked_pos = _buffer_read.find("Transfer-Encoding: chunked");
   if (chunked_pos != std::string::npos && chunked_pos < header_end) {
+    if (static_cast<long>(_buffer_read.size()) > _max_body_size)
+      throw std::runtime_error("413");
     // requete chunked : pas complete tant que le chunk terminal
     // "0\r\n\r\n" n'est pas arrive dans le body (apres header_end)
     return _buffer_read.find("0\r\n\r\n", header_end) != std::string::npos;
@@ -99,7 +115,7 @@ bool Client::handleSend(void) {
                    _buffer_send.size() - _offset_send, 0);
 
   if (n < 0)
-    throw std::runtime_error("send fail.");
+    throw std::runtime_error("500");
   _offset_send += n;
 
   // all is send ??

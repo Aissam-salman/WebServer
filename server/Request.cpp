@@ -83,6 +83,7 @@ void Request::parseRequest(const std::string &raw_request) {
     size_t pos = 0;
     while ((pos = headers_str.find("\r\n")) != std::string::npos)
         headers_str.erase(pos, 1); // Enlève le \r
+    
 
     std::istringstream issh(headers_str);
     std::string line;

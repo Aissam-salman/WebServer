@@ -6,7 +6,7 @@
 /*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/20 18:16:11 by alamjada          #+#    #+#             */
-/*   Updated: 2026/07/11 09:37:59 by alamjada         ###   ########.fr       */
+/*   Updated: 2026/07/11 11:05:15 by alamjada         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,11 +29,13 @@ class Client {
     int _cgi_pipe_fd;
     pid_t _pid;
     std::string _buffer_cgi;
+    long _max_body_size;
 
   public:
     Client(void);
     Client(int fd);
     Client(const Client &src);
+    Client(int fd, Request req, long max_body_size);
     Client(int fd, Request req);
     ~Client(void);
 
