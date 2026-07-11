@@ -21,6 +21,7 @@
 # define ERRS_PARSER_DIRECTIVE_OUTSIDE_BLOCK "' found outside any block"
 
 # define ERRS_PARSER_INVALID_SYNTAX   "Invalid syntax for key " // + key
+# define ERRS_PARSER_INVALID_SYNTAX_MSG   "Invalid syntax" // used with ParserException (token + line)
 # define ERRS_PARSER_EXISTING_LOCATION   "A location already exists with name "  // + key
 
 # define ERRS_PARSER_INVALID_METHOD_PREFIX   "Unknown HTTP method '" // + value

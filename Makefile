@@ -28,6 +28,7 @@ SERVER_SRC = \
     $(CONFIG_DIR)/Lexer.cpp \
     $(CONFIG_DIR)/Token.cpp \
     $(CONFIG_DIR)/Parser.cpp \
+    $(CONFIG_DIR)/ParserException.cpp \
     $(CONFIG_DIR)/configutils.cpp \
     $(CGI_DIR)/Cgi.cpp \
     $(CLIENT_DIR)/Client.cpp \

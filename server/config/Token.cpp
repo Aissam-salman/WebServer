@@ -31,7 +31,6 @@ void    Token::printToken(void) const {
         case PARAMETER_NBR:         display("PARAMETER_NBR"); break;
     }
     std::cout << BOLD_MAGENTA << "[LINE " << _line << "]\n" << endofline;
-
 }
 
 void    printTokens(std::vector<Token> tokens_vector) {

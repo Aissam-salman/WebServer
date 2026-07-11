@@ -40,7 +40,7 @@ std::vector<Token> Lexer::getTokenVector(void) { return (_tokens_vector); }
 // CREATES STD::STRING _TOKENS_VECTORS
 void    Lexer::initRawVector(void) {
     std::string line;
-    int         line_nbr = -1;
+    int         line_nbr = 0;
 
     // GOES THROUGH THE FILE LINE BY LINE
     while (std::getline(_raw_conf_file, line)) {
