@@ -11,7 +11,7 @@
 set -u
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 BIN="$REPO_ROOT/WebServ"
 REPORT="$SCRIPT_DIR/PARSING_ERRORS_REPORT.md"
 ESC="$(printf '\033')"

@@ -35,6 +35,10 @@ section() { printf "\n${B}== %s ==${Z}\n" "$1"; }
 # code = HTTP status of a request; extra args passed to curl
 code() { curl -s -o /dev/null -w "%{http_code}" -m 5 "$@"; }
 
+# loc = value of the Location response header (no redirect follow); args passed to curl
+loc() { curl -s -D - -o /dev/null -m 5 "$@" | grep -i '^location:' | head -1 \
+          | tr -d '\r' | sed 's/^[Ll]ocation:[[:space:]]*//'; }
+
 # assert: description | expected | actual
 eq() { if [ "$2" = "$3" ]; then ok "$1 (=$3)"; else no "$1" "want $2 got $3"; fi; }
 
@@ -61,7 +65,9 @@ BASE="http://$ADDR:$PORT"
 # ------------------------------------------------------------------ config ----
 section "Configuration"
 eq "GET / on :$PORT"                 200 "$(code $BASE/)"
-eq "GET / on vhost :$VHOST_PORT"     200 "$(code --resolve $VHOST:$VHOST_PORT:$ADDR http://$VHOST:$VHOST_PORT/)"
+# NOTE: virtual-host / Host routing on the shared port is checked in its own
+# discriminating section below (a bare 200 on :$VHOST_PORT proves nothing, since
+# the default server on that port also answers 200).
 eq "wrong URL -> 404"                404 "$(code $BASE/nope-$RANDOM)"
 eq "autoindex /files/"               200 "$(code $BASE/files/)"
 eq "default index (dir -> index.html)" 200 "$(code $BASE/)"
@@ -114,8 +120,33 @@ if printf '%s' "$OUT2" | grep -qiE 'binding failure|bind'; then
 else
   no "same port twice refused" "no bind error: $(printf '%s' "$OUT2" | head -1)"
 fi
-eq "second server port :$VHOST_PORT serves" 200 \
-   "$(code --resolve $VHOST:$VHOST_PORT:$ADDR http://$VHOST:$VHOST_PORT/)"
+# ---------------------------------------------------- virtual hosts (Host) ----
+# Both server blocks in webserv.conf share :$VHOST_PORT (server_name localhost vs
+# $VHOST). These checks send the SAME url to the SAME port and vary ONLY the Host
+# header, then assert behaviour that DIFFERS between the two blocks. They will FAIL
+# until Host/server_name routing is implemented (today every request is answered
+# from servers_vector[0], so both hosts get the localhost block's config).
+section "Virtual hosts (Host routing)"
+RA="--resolve localhost:$VHOST_PORT:$ADDR http://localhost:$VHOST_PORT"
+RB="--resolve $VHOST:$VHOST_PORT:$ADDR http://$VHOST:$VHOST_PORT"
+
+# reachability: both names must reach *a* server on the shared port
+eq "Host localhost reaches :$VHOST_PORT" 200 "$(code $RA/)"
+eq "Host $VHOST reaches :$VHOST_PORT"    200 "$(code $RB/)"
+
+# discriminator 1: /old redirect target differs per block (localhost=/files, $VHOST=/new)
+eq "vhost localhost: /old -> /files" /files "$(loc $RA/old)"
+eq "vhost $VHOST: /old -> /new"      /new   "$(loc $RB/old)"
+
+# discriminator 2: /cgi-bin method set differs ($VHOST = GET POST, no DELETE)
+eq "vhost $VHOST: DELETE /cgi-bin -> 405" 405 "$(code -X DELETE $RB$CGI_PATH)"
+NE=$(code -X DELETE $RA$CGI_PATH)
+if [ "$NE" != "405" ]; then ok "vhost localhost: DELETE /cgi-bin allowed (=$NE)"
+else no "vhost localhost: DELETE /cgi-bin allowed" "got 405"; fi
+
+# default server: unknown Host on the shared port falls back to the first block (localhost)
+eq "unknown Host -> default server (/old -> /files)" /files \
+   "$(loc --resolve foo.example:$VHOST_PORT:$ADDR http://foo.example:$VHOST_PORT/old)"
 
 # ------------------------------------------------------------------ stress -----
 section "Stress (siege / ab) & leak sanity"

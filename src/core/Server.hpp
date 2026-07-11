@@ -3,7 +3,6 @@
 
 #include "Location.hpp"
 #include "Socket.hpp"
-#include "client/Client.hpp"
 #include "utils.hpp"
 #include <map>
 #include <stdexcept>
@@ -12,6 +11,9 @@
 
 class Listener;
 
+// A single virtual host's configuration: its name, listening sockets, routes
+// (locations), error pages and body-size cap. Pure data — the poll() event loop
+// and per-connection state live in WebServ, which owns a vector of these.
 class Server {
   private:
     std::string _name;
@@ -19,25 +21,8 @@ class Server {
     std::vector<Location> _locations_vector;
     MapIntStr _error_pages; // LINKS ERROR CODES TO ACCORDING PAGES
     long _max_body_size;    // TODO : Ajouter le cap body_size
-    // HOW TO STORE ERROR_PAGES (MAP ?)
-    std::map<int, Client> _clients;
-    std::vector<std::string> _languages_supported;
-    std::vector<pollfd> _poll_fds;
-    std::map<int, int> _pipe_to_client;
 
     Server &operator=(const Server &other);
-
-    // INFO: refacto
-    void acceptNewClient(int listen_fd); // bloc accept
-    void readCgiPipe(size_t &i, int fd);
-    void clientRead(size_t &i, int fd);
-    void clientWrite(size_t &i, int fd);
-    void closeClient(size_t &i, int fd);
-    void handleCgi(Client &client, int fd);
-    void handleReq(Client &client, int i);
-    void responseError(std::runtime_error &e, int i, Client &client);
-    void loopPollFds(void);
-    void switchFdsToPollout(int client_fd);
 
   public:
     ~Server();
@@ -57,16 +42,10 @@ class Server {
     Location &getCurrentLocation(void);
     std::vector<Socket> &getSockets(void);
     MapIntStr &getErrorPages(void);
-    std::map<int, Client> &getClients(void);
 
     void addLocation(Location &new_location);
     void addSocket(Socket &new_socket);
     void addErrorPage(int code, std::string path);
-
-    static bool _running;
-
-    void run(std::vector<Listener> &listeners);
-    static void handle_sigint(int);
 };
 
 // One listening socket shared by every server that answers on its host:port
