@@ -37,6 +37,7 @@ public:
   void clear();
   Request(const std::string &server_port, const std::string &client_ip,
           const std::string &client_port, const std::string &document_root);
+  Request(void);
   ~Request();
 };
 

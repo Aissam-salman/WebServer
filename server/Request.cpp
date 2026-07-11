@@ -15,6 +15,8 @@ Request::Request(const std::string &server_port, const std::string &client_ip,
     : _server_port(server_port), _client_ip(client_ip),
       _client_port(client_port), _document_root(document_root) {}
 
+Request::Request(void) {}
+
 Request::~Request() {}
 
 static std::string trim(const std::string &s) {
@@ -99,6 +101,7 @@ void Request::parseRequest(const std::string &raw_request) {
     }
 
     if (!isChunked(raw_request)) {
+        //TODO: check body size ?? with max_size
         body = raw_request.substr(separator + 4);
         if (headers.count("Content-Length")) {
             size_t len = std::atoi(headers["Content-Length"].c_str());
@@ -110,6 +113,8 @@ void Request::parseRequest(const std::string &raw_request) {
     } else {
         std::string tmp = raw_request.substr(separator + 4);
         body = decodeChunk(tmp);
+        //TODO: check body size ?? with max_size
+        headers["Content-length"] = body.size();
     }
 
     if (isCGI())
@@ -182,7 +187,6 @@ void Request::parseCgi_env() {
             cgi_env["SCRIPT_NAME"] = path;
             cgi_env["PATH_INFO"] = "";
         }
-        // INFO: integrate php cgi
     } else if ((extension_pos = path.find(".php")) != std::string::npos) {
         size_t end = path.find("/", extension_pos);
         if (end != std::string::npos) {

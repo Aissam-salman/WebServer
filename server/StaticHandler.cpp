@@ -209,6 +209,8 @@ bool StaticHandler::isFileAlreadyExist(std::string &file_path) const {
   return true;
 }
 
+typedef std::map< std::string, std::string>::const_iterator mapStrIter;
+
 Response StaticHandler::handle() const {
   // redirection configurée dans la location
 
@@ -250,23 +252,24 @@ Response StaticHandler::handle() const {
   }
   // c'est un dossier
   if (S_ISDIR(st.st_mode)) {
-    // TODO: is POST methods
     /////////////////////////////////////////////////////////
     if (_request.getMethod() == "POST") {
-      size_t header_content_type_pos = _request.getHeaders()
-                                           .find("Content-Type")
-                                           ->second.find("multipart/form-data");
+      mapStrIter header_content = _request.getHeaders().find("Content-Type");
+      if (header_content == _request.getHeaders().end())
+          return Response(400, "Bad Request");
+      size_t header_content_type_pos = header_content->second.find("multipart/form-data");
 
       // accept just multipart/form-data for POST
       if (header_content_type_pos != std::string::npos) {
         std::string boundary =
-            extractBoundary(_request.getHeaders().find("Content-Type")->second);
+            extractBoundary(header_content->second);
 
         if (boundary.empty())
           return Response(400, "Bad Request");
 
         // recup filename,
         size_t start_pos = _request.getBody().find(boundary);
+        
         std::string filename;
         std::string file_type;
         size_t end;

@@ -6,7 +6,7 @@
 /*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/20 18:40:45 by alamjada          #+#    #+#             */
-/*   Updated: 2026/07/10 18:47:02 by alamjada         ###   ########.fr       */
+/*   Updated: 2026/07/11 10:36:20 by alamjada         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -68,6 +68,7 @@ bool Client::isRequestCompleted(void) {
     size_t len_end = _buffer_read.find("\r\n", len_start);
     std::string lenString = _buffer_read.substr(len_start, len_end - len_start);
     size_t len = strToInt(lenString);
+    //FIX : check if pass max body size throw 413
     size_t body_size = _buffer_read.size() - (header_end + 4);
     return body_size >= len;
   }
@@ -109,5 +110,3 @@ bool Client::handleSend(void) {
   // still have data
   return true;
 }
-
-Client *Client::clone(void) { return new Client(*this); }
