@@ -1,5 +1,6 @@
 #include "Request.hpp"
 #include <algorithm>
+#include <cctype>
 #include <cstddef>
 #include <cstdlib>
 #include <iostream>
@@ -48,7 +49,7 @@ std::string Request::decodeChunk(std::string &body_raw) {
         // ON TROUVE LE PROCHAIN BLOC D'INFO SIZE DU CHUNK
         size_t end_hex = body_raw.find("\r\n", start);
         if (end_hex == std::string::npos)
-            throw std::runtime_error("no hex");
+            throw std::runtime_error("400");
 
         // ON RECUPERE LA VALEUR EN HEXA ET ON LA CONVERTIT EN DECIMAL
         std::string hex_val = body_raw.substr(start, end_hex - start);

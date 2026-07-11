@@ -212,22 +212,9 @@ void Server::readCgiPipe(size_t &i, int fd) {
     }
 }
 
-long Server::findMaxBodySizeInLocation(void){
-  std::vector<Location>::const_iterator it = _locations_vector.begin();
-  std::vector<Location>::const_iterator ite = _locations_vector.end();
-  
-  for (;it != ite; ++it) {
-    it->printLocation();
-  }
-  return 0;
-}
-
 // create client class, and poll_fd for client and add to pollfds
 void Server::acceptNewClient(int listen_fd) {
-    long cur_max_size = _max_body_size;
-    findMaxBodySizeInLocation();
-      
-    _clients[listen_fd] = Client(listen_fd, Request(), cur_max_size);
+    _clients[listen_fd] = Client(listen_fd, Request(), _max_body_size);
     _poll_fds.push_back(_clients[listen_fd].getPollfd());
 }
 
@@ -275,15 +262,12 @@ void Server::clientRead(size_t &i, int fd) {
     Client &client = _clients[fd];
     bool isHere;
 
-    try {
-        isHere = client.handleRecv();
-    } catch (std::runtime_error &e) {
-        responseError(e, i, client);
-        return;
-    }
+    isHere = client.handleRecv();
     if (!isHere)
-            closeClient(i, fd);
-    else if (client.getStatus() == WRITTING) {
+        closeClient(i, fd);
+    else if (client.getStatus() == TRASH) {
+        client.clearBufferRead();
+    } else if (client.getStatus() == WRITTING) {
         try {
             client._request.parseRequest(client.getBufferRead());
             if (client._request.isCGI())
@@ -293,6 +277,12 @@ void Server::clientRead(size_t &i, int fd) {
         } catch (std::runtime_error &e) {
             responseError(e, i, client);
         }
+    }
+    if (client.getCounterTrash() <= 0 && client.getStatus() == TRASH) {
+        Response rp = Response(413, "Playload Too Large");
+        std::string ct = rp.build();
+        client.setResponse(ct);
+        _poll_fds[i].events = POLLOUT;
     }
 }
 
@@ -371,6 +361,8 @@ void Server::loopPollFds(void) {
             }
         }
     }
+    while (waitpid(-1, NULL, WNOHANG) > 0)
+        ;
 }
 
 // RUNS THE SERVER

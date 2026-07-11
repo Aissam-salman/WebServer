@@ -16,6 +16,7 @@ std::string Response::reasonPhrase(int code)
     r[302] = "Found";
     r[400] = "Bad Request";
     r[403] = "Forbidden";
+    r[413] = "Payload Too Large";
     r[404] = "Not Found";
     r[405] = "Method Not Allowed";
     r[411] = "Length Required";

@@ -6,7 +6,7 @@
 /*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/20 18:16:11 by alamjada          #+#    #+#             */
-/*   Updated: 2026/07/11 11:05:15 by alamjada         ###   ########.fr       */
+/*   Updated: 2026/07/11 15:40:44 by alamjada         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,7 +17,7 @@
 #include <string>
 #include <sys/poll.h>
 
-enum e_state_client { READING, WRITTING, DONE, READING_CGI };
+enum e_state_client { READING, WRITTING, DONE, READING_CGI, TRASH };
 
 class Client {
   private:
@@ -30,6 +30,7 @@ class Client {
     pid_t _pid;
     std::string _buffer_cgi;
     long _max_body_size;
+    size_t _counter_trash;
 
   public:
     Client(void);
@@ -53,6 +54,8 @@ class Client {
     int getCgiPipefd(void) { return _cgi_pipe_fd; }
     pid_t getPid(void) { return _pid; }
     std::string getBufferCgi(void) const { return _buffer_cgi; }
+    size_t getCounterTrash(void);
+    void clearBufferRead(void);
 
     void setStatus(enum e_state_client e) { _status = e; }
     void setCgiPipeFd(int fd) { _cgi_pipe_fd = fd; }
