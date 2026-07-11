@@ -10,13 +10,16 @@
 #include <csignal>
 #include <cstddef>
 #include <cstdlib>
+#include <fcntl.h>
 #include <iostream>
 #include <stdexcept>
+#include <string>
 #include <sys/poll.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <vector>
+#include <map>
 
 bool Server::_running = true;
 
@@ -214,6 +217,8 @@ void Server::readCgiPipe(size_t &i, int fd) {
 
 // create client class, and poll_fd for client and add to pollfds
 void Server::acceptNewClient(int listen_fd) {
+
+    fcntl(listen_fd, F_SETFD, FD_CLOEXEC);
     _clients[listen_fd] = Client(listen_fd, Request(), _max_body_size);
     _poll_fds.push_back(_clients[listen_fd].getPollfd());
 }
@@ -270,6 +275,22 @@ void Server::clientRead(size_t &i, int fd) {
     } else if (client.getStatus() == WRITTING) {
         try {
             client._request.parseRequest(client.getBufferRead());
+
+
+
+          //GET LOCATION MATCH WITH URL, AND ADD SCRIPT FILENAME TO RUN EXECVE
+            Location loc = StaticHandler::findLocation(
+                _locations_vector, client._request.getResource());
+            std::string root_doc = loc.getRootPath();
+
+            std::map<std::string, std::string>::const_iterator script_name =
+                client._request.getCgi_env().find("SCRIPT_NAME");
+
+            if (script_name != client._request.getCgi_env().end()) {
+              client._request.addToCgiEnv( "SCRIPT_FILENAME", root_doc + script_name->second);
+            }
+
+
             if (client._request.isCGI())
                 handleCgi(client, fd);
             else
@@ -293,7 +314,6 @@ void Server::clientWrite(size_t &i, int fd) {
         closeClient(i, fd);
     }
 }
-
 // Called once after every poll() wake-up. poll() has just filled in the
 // .revents field of each pollfd; our job here is to walk the whole set and
 // react to every fd that became ready. We handle THREE kinds of fd, all living

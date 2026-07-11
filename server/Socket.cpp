@@ -8,6 +8,7 @@
 #include <netdb.h>
 #include <unistd.h>
 #include <stdexcept>
+#include <fcntl.h>
 
 #include "Socket.hpp"
 #include "utils.hpp"
@@ -74,6 +75,9 @@ void Socket::setSocket(int port) {
     // --- STEP 1: socket() — create the endpoint --------------------------
     // Uses the family/type/protocol getaddrinfo resolved. Returns an fd (int).
     _listen_fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+
+    fcntl(_listen_fd, F_SETFD, FD_CLOEXEC);
+
     if (_listen_fd < 0) {
         freeaddrinfo(res);          // free the list getaddrinfo malloc'd before bailing
         throw std::runtime_error("Listening socket didn't initialize properly");

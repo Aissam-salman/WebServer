@@ -214,4 +214,8 @@ void Request::parseCgi_env() {
     }
 }
 
+void Request::addToCgiEnv(std::string key, std::string val) {
+  cgi_env[key] = val;
+}
+
 void Request::clear() {}

@@ -11,7 +11,7 @@
 #include <unistd.h>
 
 // trouve le meilleur path pour stocker dans statichandler
-static Location &findLocation(std::vector<Location> &locs,
+Location &StaticHandler::findLocation(std::vector<Location> &locs,
                               const std::string &resource) {
   size_t best_len = 0;
   Location *best = NULL;
@@ -235,6 +235,7 @@ Response StaticHandler::handle() const {
   // #if DEBUG_RESPONSE == 1
   //   std::cout << BOLD_CYAN << "PATH RESPONSE = " << path << endofline;
   // #endif
+
 
   if (!isSafePath(path))
     throw std::runtime_error("403");

@@ -33,6 +33,7 @@ public:
   const std::string &getBody() const { return body; }
   const std::map<std::string, std::string> &getCgi_env() const { return cgi_env; }
   std::string &getDocumentRoot(void) { return _document_root; }
+  void addToCgiEnv(std::string key, std::string val);
 
   void clear();
   Request(const std::string &server_port, const std::string &client_ip,
