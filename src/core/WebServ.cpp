@@ -2,14 +2,12 @@
 #include "Cgi.hpp"
 #include "Client.hpp"
 #include "Lexer.hpp"
-#include "Location.hpp"
 #include "Parser.hpp"
 #include "Request.hpp"
 #include "Response.hpp"
 #include "StaticHandler.hpp"
-#include "configutils.hpp"
-#include "utils.hpp"
 #include "errors.hpp"
+#include "utils.hpp"
 #include <arpa/inet.h>
 #include <csignal>
 #include <cstddef>
@@ -40,7 +38,8 @@ static std::string formatPeer(const struct sockaddr_in &addr) {
 
 // ==== ~TORS ====
 
-// BUILD THE RUNTIME FROM A CONFIG FILE: LEX -> PARSE SERVERS -> GATHER LISTENERS
+// BUILD THE RUNTIME FROM A CONFIG FILE: LEX -> PARSE SERVERS -> GATHER
+// LISTENERS
 WebServ::WebServ(const char *config_path) {
     // lex + parse the config into the server vector
     Lexer lexer(config_path);
@@ -86,7 +85,8 @@ void WebServ::switchFdsToPollout(int client_fd) {
     }
 }
 
-// READ CGI STDOUT FROM THE PIPE; ON EOF BUILD THE RESPONSE AND SWITCH TO POLLOUT
+// READ CGI STDOUT FROM THE PIPE; ON EOF BUILD THE RESPONSE AND SWITCH TO
+// POLLOUT
 void WebServ::readCgiPipe(size_t &i, int fd) {
     int client_fd = _pipe_to_client[fd];
     Client &client = _clients[client_fd];
@@ -100,19 +100,20 @@ void WebServ::readCgiPipe(size_t &i, int fd) {
         client.appendToBufferCgi(buf, n);
     } else if (n == 0) {
         // eof: reap the child, build the response, close the pipe, flush client
-        waitpid(client.getPid(), NULL, WNOHANG);
-        std::string resp = buildHttpResponse(client.getBufferCgi());
-        client.setResponse(resp);
-        client.setStatus(WRITTING);
+        if (client.getPid() > 0) {
+            waitpid(client.getPid(), NULL, WNOHANG);
+            std::string resp = buildHttpResponse(client.getBufferCgi());
+            client.setResponse(resp);
+            client.setStatus(WRITTING);
+            switchFdsToPollout(client_fd);
+        }
+        _pipe_to_client.erase(fd);
         closeClient(i, fd);
-        switchFdsToPollout(client_fd);
     }
 }
 
 // CREATE THE CLIENT AND ITS POLLFD, THEN ADD IT TO THE POLL SET (NO PEER)
-void WebServ::acceptNewClient(int client_fd) {
-    acceptNewClient(client_fd, "");
-}
+void WebServ::acceptNewClient(int client_fd) { acceptNewClient(client_fd, ""); }
 
 // SAME, BUT RECORDS THE PEER'S "IP:PORT" ON THE CLIENT FOR THE ACCESS LOG
 void WebServ::acceptNewClient(int client_fd, const std::string &peer) {
@@ -140,9 +141,11 @@ void WebServ::handleCgi(Client &client, int fd) {
     cgi.run();
     pollfd pfd;
     pfd.fd = client.getCgiPipefd();
-    // the pipe read-end must be non-blocking too, or a stuck cgi freezes the loop
+    // the pipe read-end must be non-blocking too, or a stuck cgi freezes the
+    // loop
     fcntl(pfd.fd, F_SETFL, O_NONBLOCK | FD_CLOEXEC);
     pfd.events = POLLIN;
+    pfd.revents = 0;
     _poll_fds.push_back(pfd);
     // map the pipe back to its client so readCgiPipe() can find it
     _pipe_to_client[client.getCgiPipefd()] = fd;
@@ -150,7 +153,8 @@ void WebServ::handleCgi(Client &client, int fd) {
 
 // SERVE A STATIC REQUEST: BUILD THE RESPONSE AND SWITCH TO POLLOUT
 void WebServ::handleReq(Client &client, int i) {
-    // TODO: pick Server by Host header / listener instead of always _servers[0].
+    // TODO: pick Server by Host header / listener instead of always
+    // _servers[0].
     StaticHandler handler(client._request, _servers[0].getLocations());
     Response response = handler.handle();
     std::string bu = response.build();
@@ -164,7 +168,8 @@ void WebServ::responseError(std::runtime_error &e, int i, Client &client) {
     int code = std::atoi(e.what());
     if (code == 0)
         code = 500;
-    // TODO: pick Server by Host header / listener instead of always _servers[0].
+    // TODO: pick Server by Host header / listener instead of always
+    // _servers[0].
     Response response = buildErrorResponse(code, _servers[0].getErrorPages());
     std::string bu = response.build();
     client.setResponse(bu);
@@ -178,15 +183,32 @@ void WebServ::clientRead(size_t &i, int fd) {
 
     isHere = client.handleRecv();
     // peer closed the connection
-    if (!isHere)
+    if (!isHere) {
         closeClient(i, fd);
+        return;
+    }
     // oversized body: keep draining into the trash
     else if (client.getStatus() == TRASH) {
         client.clearBufferRead();
-    // request fully received: parse and route it
+        // request fully received: parse and route it
     } else if (client.getStatus() == WRITTING) {
         try {
             client._request.parseRequest(client.getBufferRead());
+
+            // GET LOCATION MATCH WITH URL, AND ADD SCRIPT FILENAME TO RUN
+            //
+            // EXECVE
+            Location loc = StaticHandler::findLocation(
+                _servers[0].getLocations(), client._request.getResource());
+
+            std::map<std::string, std::string>::const_iterator script_name =
+                client._request.getCgi_env().find("SCRIPT_NAME");
+
+            if (script_name != client._request.getCgi_env().end()) {
+                std::string root_doc =
+                    StaticHandler::resolvePath(loc, script_name->second);
+                client._request.addToCgiEnv("SCRIPT_FILENAME", root_doc);
+            }
 
             if (client._request.isCGI())
                 handleCgi(client, fd);
@@ -219,40 +241,49 @@ void WebServ::loopPollFds(void) {
     // indexed loop: closeClient() erases entries and does i--, so we mutate
     // the container mid-iteration and re-check size() each turn
     for (size_t i = 0; i < _poll_fds.size(); i++) {
-        int fd = _poll_fds[i].fd;
+        try {
 
-        // nothing happened on this fd this round
-        if (!_poll_fds[i].revents)
-            continue;
+            int fd = _poll_fds[i].fd;
 
-        // case 1: a cgi output pipe has data or eof
-        if (_pipe_to_client.count(fd)) {
-            readCgiPipe(i, fd);
-        // case 2: a listening socket has a new connection to accept
-        } else if (_clients.count(fd) == 0) {
-            if (_poll_fds[i].revents & POLLIN) {
-                struct sockaddr_in addr;
-                socklen_t addrlen = sizeof(addr);
-                int client_fd =
-                    accept(fd, reinterpret_cast<struct sockaddr *>(&addr),
-                           &addrlen);
-                // accept failed (client vanished): ignore
-                if (client_fd < 0)
-                    continue;
-                acceptNewClient(client_fd, formatPeer(addr));
+            // nothing happened on this fd this round
+            if (!_poll_fds[i].revents)
+                continue;
+
+            // case 1: a cgi output pipe has data or eof
+            if (_pipe_to_client.count(fd)) {
+                readCgiPipe(i, fd);
+                // case 2: a listening socket has a new connection to accept
+            } else if (_clients.count(fd) == 0) {
+                if (_poll_fds[i].revents & POLLIN) {
+                    struct sockaddr_in addr;
+                    socklen_t addrlen = sizeof(addr);
+                    int client_fd =
+                        accept(fd, reinterpret_cast<struct sockaddr *>(&addr),
+                               &addrlen);
+                    // accept failed (client vanished): ignore
+                    if (client_fd < 0)
+                        continue;
+                    acceptNewClient(client_fd, formatPeer(addr));
+                }
+                // case 3: an established client connection
+            } else {
+                // client sent bytes: read/parse the request
+                if (_poll_fds[i].revents & POLLIN)
+                    clientRead(i, fd);
+                // socket writable: flush (part of) the response
+                else if (_poll_fds[i].revents & POLLOUT) {
+                    clientWrite(i, fd);
+                    // peer hung up or socket errored: tear it down
+                } else if (_poll_fds[i].revents & (POLLHUP | POLLERR)) {
+                    closeClient(i, fd);
+                }
             }
-        // case 3: an established client connection
-        } else {
-            // client sent bytes: read/parse the request
-            if (_poll_fds[i].revents & POLLIN)
-                clientRead(i, fd);
-            // socket writable: flush (part of) the response
-            else if (_poll_fds[i].revents & POLLOUT) {
-                clientWrite(i, fd);
-            // peer hung up or socket errored: tear it down
-            } else if (_poll_fds[i].revents & (POLLHUP | POLLERR)) {
-                closeClient(i, fd);
-            }
+        } catch (std::runtime_error &e) {
+            std::cerr << "Error: loopPoll: " << e.what() << std::endl;
+        } catch (std::exception &e) {
+            std::cerr << "Error: loopPoll: " << e.what() << std::endl;
+        } catch (...) {
+            std::cerr << "Error: loopPoll: ?" << std::endl;
         }
     }
     // reap any finished cgi children

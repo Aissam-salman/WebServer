@@ -6,7 +6,7 @@
 /*   By: fardeau <fardeau@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/20 18:40:45 by alamjada          #+#    #+#             */
-/*   Updated: 2026/07/12 12:35:37 by alamjada         ###   ########.fr       */
+/*   Updated: 2026/07/12 20:43:59 by salman           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,7 +24,7 @@
 // ==== ~TORS ====
 
 // DEFAULT CLIENT: EMBEDDED REQUEST WITH PLACEHOLDER CONNECTION INFO
-Client::Client(void) : _request("8080", "0", "0000", "www") {}
+Client::Client(void) : _pid(0), _request("8080", "0", "0000", "www") {}
 
 // FROM AN ACCEPTED FD: START IN READING AND ARM THE POLLFD FOR POLLIN
 Client::Client(int fd)
@@ -33,6 +33,7 @@ Client::Client(int fd)
   _poll_listen.events = POLLIN;
   _poll_listen.revents = 0;
   _counter_trash = 0;
+  _pid = 0;
 }
 
 // FROM AN FD + PARSED REQUEST (DEFAULT MAX BODY SIZE)
@@ -42,6 +43,7 @@ Client::Client(int fd, Request rq)
   _poll_listen.events = POLLIN;
   _poll_listen.revents = 0;
   _counter_trash = 0;
+  _pid = 0;
 }
 
 // FROM AN FD + PARSED REQUEST + PER-SERVER MAX BODY SIZE
@@ -51,6 +53,7 @@ Client::Client(int fd, Request rq, long max_body_size)
   _poll_listen.events = POLLIN;
   _poll_listen.revents = 0;
   _counter_trash = 0;
+  _pid = 0;
 }
 
 // COPY CTOR: DELEGATE TO THE COMPILER-GENERATED ASSIGNMENT
