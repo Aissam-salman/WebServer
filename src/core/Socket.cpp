@@ -12,6 +12,7 @@
 
 #include "Socket.hpp"
 #include "utils.hpp"
+#include "errors.hpp"
 
 // ==== ~TORS ====
 
@@ -68,14 +69,14 @@ void Socket::setSocket(int port) {
 
     ret = getaddrinfo(node, port_str.c_str(), &hints, &res);
     if (ret != 0)
-        throw std::runtime_error(std::string("getaddrinfo: ") + gai_strerror(ret));
+        throw std::runtime_error(std::string(ERRS_SOCKET_GETADDRINFO) + gai_strerror(ret));
 
     // step 1: create the socket endpoint
     _listen_fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 
     if (_listen_fd < 0) {
         freeaddrinfo(res);
-        throw std::runtime_error("Listening socket didn't initialize properly");
+        throw std::runtime_error(ERRS_SOCKET_INIT);
     }
 
     // non-blocking + close-on-exec (one F_SETFL call per the subject rule)
@@ -90,7 +91,7 @@ void Socket::setSocket(int port) {
     if (ret != 0) {
         close(_listen_fd);
         freeaddrinfo(res);
-        throw std::runtime_error("Listening socket didn't set properly");
+        throw std::runtime_error(ERRS_SOCKET_SETOPT);
     }
 
     // step 3: bind the fd to the concrete host:port
@@ -99,7 +100,7 @@ void Socket::setSocket(int port) {
         close(_listen_fd);
         freeaddrinfo(res);
         std::cout << "BINDING FAILURE\n\n" << std::endl;
-        throw std::runtime_error(std::string("Binding failed.") + strerror(errno));
+        throw std::runtime_error(std::string(ERRS_SOCKET_BIND) + strerror(errno));
     }
 #if DEBUG == 1
     std::cout << "BINDING SUCCESS\n\n" << std::endl;
@@ -113,7 +114,7 @@ void Socket::setSocket(int port) {
     ret = listen(_listen_fd, BACK_LOG);
     if (ret != 0) {
         close(_listen_fd);
-        throw std::runtime_error("Listening on socket failed");
+        throw std::runtime_error(ERRS_SOCKET_LISTEN);
     }
 #if DEBUG == 1
     std::cout << "LISTENING SUCCESS on port : " << port << std::endl;

@@ -9,6 +9,7 @@
 #include <string>
 
 #include "utils.hpp"
+#include "errors.hpp"
 
 // REQUEST BOUND TO CONNECTION INFO (PORTS, CLIENT IP, DOCUMENT ROOT)
 Request::Request(const std::string &server_port, const std::string &client_ip,
@@ -78,7 +79,7 @@ void Request::parseRequest(const std::string &raw_request) {
     // the blank line splits the header block from the body
     size_t separator = raw_request.find("\r\n\r\n");
     if (separator == std::string::npos)
-        throw std::runtime_error("missing separator CRLF");
+        throw std::runtime_error(ERRS_REQUEST_MISSING_CRLF);
 
     // first line -> request line
     std::string before_body = raw_request.substr(0, separator);

@@ -3,8 +3,6 @@
 #include <cctype>
 #include <cerrno>
 #include <climits>
-#include <iostream>
-#include <stdexcept>
 #include <vector>
 
 #include "Token.hpp"
@@ -64,7 +62,7 @@ void	Parser::lowerScope(void) {
 	else if (_state == LOCATION)
 		_state = SERVER;
 	else
-		throw std::runtime_error (ERRS_PARSER_SCOPE_UNDERFLOW);
+		throw std::runtime_error (ERRS_PARSER_OUT_OF_SCOPE);
 }
 
 // UPS SCOPE : SERVER -> LOCATION / GLOBAL -> SERVER 
@@ -75,7 +73,7 @@ void	Parser::upperScope(void) {
 	else if (_state == GLOBAL)
 		_state = SERVER;
 	else
-		throw std::runtime_error (ERRS_PARSER_SCOPE_OVERFLOW);
+		throw std::runtime_error (ERRS_PARSER_OUT_OF_SCOPE);
 }
 
 // RETURNS THE VECTOR OF TOKEN TO PARSE THE NEXT DIRECTIVE
@@ -115,7 +113,7 @@ void	Parser::parseStateDirective(size_t& index) {
 	// CONSTRUCTS A NEW SERVER
 	if (_tokens_vector[index]._value == "server" && _tokens_vector[index + 1]._type == Token::OPEN_BRACKET) {
 		if (_state != GLOBAL)
-				throw ParserException("Directive is not valid in " + scopeName(_state) + " scope", _tokens_vector[index]);
+				throw ParserException(ERRS_PARSER_DIRECTIVE_SCOPE_PREFIX + scopeName(_state) + ERRS_PARSER_DIRECTIVE_SCOPE_SUFFIX, _tokens_vector[index]);
 
 		// Builds a new server from dust and pushes it into existing servers_vector
 		Server new_server;
@@ -127,14 +125,14 @@ void	Parser::parseStateDirective(size_t& index) {
 	// CONSTRUCTS A NEW LOCATION
 	else if (_tokens_vector[index]._value == "location" && _tokens_vector[index + 2]._type == Token::OPEN_BRACKET) {
 		if (_state != SERVER)
-				throw ParserException("Directive is not valid in " + scopeName(_state) + " scope", _tokens_vector[index]);
+				throw ParserException(ERRS_PARSER_DIRECTIVE_SCOPE_PREFIX + scopeName(_state) + ERRS_PARSER_DIRECTIVE_SCOPE_SUFFIX, _tokens_vector[index]);
 
 		// TODO : Check if folder doesn´t exist already
 
 		std::vector<Location>& locations_vector = getCurrentServer().getServerLocationsVector();
 		for (size_t i = 0; i < locations_vector.size(); i++) {
 			if (locations_vector[i].getName() == _tokens_vector[index + 1]._value)
-				throw ParserException("A location already exists with name", _tokens_vector[index + 1]);
+				throw ParserException(ERRS_PARSER_EXISTING_LOCATION, _tokens_vector[index + 1]);
 		}
 
 		// Builds a new location from dust and pushes it into existing locations_vector
@@ -173,7 +171,7 @@ void	Parser::setupMethods(void) {
 			std::map<std::string, e_methods>::const_iterator it =
 					getMethodMap().find(_temp_vector[i]._value);
 			if (it == getMethodMap().end())
-					throw ParserException("Unknown HTTP method in methods directive", _temp_vector[i]);
+					throw ParserException(ERRS_PARSER_INVALID_METHOD, _temp_vector[i]);
 			getCurrentLocation().getMethodFlag() |= it->second; 
 	}
 }
@@ -269,11 +267,11 @@ static bool	isValidIP(const std::string& host) {
 // CHECKS IF THE STANDARD OF PORT IS WELL RESPECTED
 static int	parsePort(const std::string& port_str, int line) {
 	if (port_str.empty())
-		throw ParserException("Invalid port in listen directive", port_str, line);
+		throw ParserException(ERRS_PARSER_INVALID_PORT, port_str, line);
 
 	for (size_t i = 0; i < port_str.size(); i++) {
 		if (!std::isdigit(static_cast<unsigned char>(port_str[i])))
-			throw ParserException("Invalid port in listen directive", port_str, line);
+			throw ParserException(ERRS_PARSER_INVALID_PORT, port_str, line);
 	}
 
 	errno = 0;
@@ -281,7 +279,7 @@ static int	parsePort(const std::string& port_str, int line) {
 	long	port = std::strtol(port_str.c_str(), &end, 10);
 
 	if (errno == ERANGE || *end != '\0' || port < 1 || port > 65535)
-		throw ParserException("Invalid port in listen directive", port_str, line);
+		throw ParserException(ERRS_PARSER_INVALID_PORT, port_str, line);
 
 	return (static_cast<int>(port));
 }
@@ -305,7 +303,7 @@ void	Parser::setupListen(void) {
 		host = value.substr(0, colon);
 		port_str = value.substr(colon + 1);
 		if (isValidIP(host) == false)
-			throw ParserException("Invalid host in listen directive", host, _temp_vector[1]._line);
+			throw ParserException(ERRS_PARSER_INVALID_HOST, host, _temp_vector[1]._line);
 	}
 	int	port = parsePort(port_str, _temp_vector[1]._line);
 
@@ -327,7 +325,7 @@ void				Parser::setupAutoIndex(void) {
 	else if (_temp_vector[1]._value == "on")
 		getCurrentLocation().setAutoIndex(true);
 	else
-		throw ParserException("autoindex only accepts 'on' or 'off'", _temp_vector[1]);
+		throw ParserException(ERRS_PARSER_INVALID_AUTOINDEX, _temp_vector[1]);
 }
 
 // SETS THE SERVER NAME + CHECKS IF IT WASN'T ALREADY USED / NAMED
@@ -335,11 +333,11 @@ void				Parser::setupServerName(void) {
 	expectSingleValue();
 
 	if (getCurrentServer().getServerName() != "")
-		throw ParserException("Server name is already set", _temp_vector[1]);
+		throw ParserException(ERRS_PARSER_SERVER_NAME_ALREADY_SET, _temp_vector[1]);
 
 	for (size_t i = 0; i < _servers_vector.size(); i++) {
 		if (_servers_vector[i].getServerName() == _temp_vector[1]._value)
-			throw ParserException("A server already exists with name", _temp_vector[1]);
+			throw ParserException(ERRS_PARSER_DUPLICATE_SERVER_NAME, _temp_vector[1]);
 	}
 	getCurrentServer().setServerName(_temp_vector[1]._value);
 }
@@ -353,7 +351,7 @@ void				Parser::setupReturn(void) {
 	long	code = std::strtol( _temp_vector[1]._value.c_str(), &end, 10);
 
 	if (errno == ERANGE || *end != '\0' || code < 300 || code > 599) // TODO : VERIFY FOR THE ALLOWED ERROR CODES FOR REDIR
-		throw ParserException("Invalid error code in return directive", _temp_vector[1]);
+		throw ParserException(ERRS_PARSER_INVALID_RETURN_CODE, _temp_vector[1]);
 
 	getCurrentLocation().setReturn(true);
 	getCurrentLocation().setReturnErrorCode(code);
@@ -363,10 +361,10 @@ void				Parser::setupReturn(void) {
 // CHECKS IF THE ERROR CODE IS CONFORM AND IN THE RANGE GIVEN
 static int	parseErrorCode(const std::string& code_str, int line) {
 	if (code_str.empty())
-		throw ParserException("Invalid error code in error_page directive", code_str, line);
+		throw ParserException(ERRS_PARSER_INVALID_ERROR_CODE, code_str, line);
 	for (size_t i = 0; i < code_str.size(); i++) {
 		if (!std::isdigit(static_cast<unsigned char>(code_str[i])))
-			throw ParserException("Invalid error code in error_page directive", code_str, line);
+			throw ParserException(ERRS_PARSER_INVALID_ERROR_CODE, code_str, line);
 	}
 
 	errno = 0;
@@ -374,7 +372,7 @@ static int	parseErrorCode(const std::string& code_str, int line) {
 	long	code = std::strtol(code_str.c_str(), &end, 10);
 
 	if (errno == ERANGE || *end != '\0' || code < 300 || code > 599)
-		throw ParserException("Invalid error code in error_page directive", code_str, line);
+		throw ParserException(ERRS_PARSER_INVALID_ERROR_CODE, code_str, line);
 	return (static_cast<int>(code));
 }
 
@@ -407,14 +405,14 @@ void	Parser::parseDirective(size_t& index) {
 	// Switch case to check the validity of a directive confronted to its scope
 	switch (_state) {
 		case GLOBAL:
-			throw ParserException("Directive found outside any block", _tokens_vector[index]);
+			throw ParserException(ERRS_PARSER_DIRECTIVE_OUTSIDE_BLOCK, _tokens_vector[index]);
 		case SERVER:
 			if (!isValidKey(key, SERVER_DIRECTIVES, SERVER_DIRECTIVES_SIZE))
-				throw ParserException("Directive is not valid in server scope", _tokens_vector[index]);
+				throw ParserException(ERRS_PARSER_DIRECTIVE_IN_SERVER, _tokens_vector[index]);
 			break;
 		case LOCATION:
 			if (!isValidKey(key, LOCATION_DIRECTIVES, LOCATION_DIRECTIVES_SIZE))
-				throw ParserException("Directive is not valid in location scope", _tokens_vector[index]);
+				throw ParserException(ERRS_PARSER_DIRECTIVE_IN_LOCATION, _tokens_vector[index]);
 			break;
 	}
 
@@ -465,7 +463,7 @@ void	Parser::initServers(void) {
 
 		// Sends an error 
 		else
-			throw ParserException("Invalid directive found in file", _tokens_vector[i]);
+			throw ParserException(ERRS_PARSER_INVALID_DIRECTIVE, _tokens_vector[i]);
 		
 		// Clears the temporary vector
 		_temp_vector.clear();

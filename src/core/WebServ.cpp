@@ -9,6 +9,7 @@
 #include "StaticHandler.hpp"
 #include "configutils.hpp"
 #include "utils.hpp"
+#include "errors.hpp"
 #include <arpa/inet.h>
 #include <csignal>
 #include <cstddef>
@@ -63,7 +64,7 @@ WebServ::~WebServ() {}
 // SIGINT HANDLER: FLIP THE RUN FLAG SO THE EVENT LOOP EXITS CLEANLY
 void WebServ::handle_sigint(int) {
     WebServ::_running = false;
-    std::cerr << "SIGNAL RECEIVED" << std::endl;
+    std::cerr << ERRS_WEBSERV_SIGNAL << std::endl;
 }
 
 // ==== OUTPUTS ====
@@ -276,7 +277,7 @@ void WebServ::run(void) {
     while (_running) {
         int ret = poll(&_poll_fds[0], _poll_fds.size(), TIMEOUT);
         if (ret == -1 && _running)
-            throw std::runtime_error("Poll failed miserably");
+            throw std::runtime_error(ERRS_WEBSERV_POLL);
         loopPollFds();
     }
 }
