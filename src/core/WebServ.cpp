@@ -56,6 +56,7 @@ WebServ::WebServ(const char *config_path) {
     // _languages_supported.push_back("php");
 
     signal(SIGINT, handle_sigint);
+    signal(SIGPIPE, SIG_IGN);
 }
 
 WebServ::~WebServ() {}
@@ -112,6 +113,16 @@ void WebServ::readCgiPipe(size_t &i, int fd) {
     }
 }
 
+void WebServ::writeCgiPipe(size_t &i, int fd) {
+    int client_fd = _pipe_to_client_write[fd];
+    Client &client = _clients[client_fd];
+    bool isDone = client.handleSendCgi();
+    if (!isDone) {
+        _pipe_to_client_write.erase(fd);
+        closeClient(i, fd);
+    }
+}
+
 // CREATE THE CLIENT AND ITS POLLFD, THEN ADD IT TO THE POLL SET (NO PEER)
 void WebServ::acceptNewClient(int client_fd) { acceptNewClient(client_fd, ""); }
 
@@ -149,6 +160,17 @@ void WebServ::handleCgi(Client &client, int fd) {
     _poll_fds.push_back(pfd);
     // map the pipe back to its client so readCgiPipe() can find it
     _pipe_to_client[client.getCgiPipefd()] = fd;
+
+    // handle cgi write non boquant
+    if (client.getCgiPipefdWrite() != -1) {
+        pollfd pfd_w;
+        pfd_w.fd = client.getCgiPipefdWrite();
+        fcntl(pfd_w.fd, F_SETFL, O_NONBLOCK | FD_CLOEXEC);
+        pfd_w.events = POLLOUT;
+        pfd_w.revents = 0;
+        _poll_fds.push_back(pfd_w);
+        _pipe_to_client_write[client.getCgiPipefdWrite()] = fd;
+    }
 }
 
 // SERVE A STATIC REQUEST: BUILD THE RESPONSE AND SWITCH TO POLLOUT
@@ -253,6 +275,8 @@ void WebServ::loopPollFds(void) {
             if (_pipe_to_client.count(fd)) {
                 readCgiPipe(i, fd);
                 // case 2: a listening socket has a new connection to accept
+            } else if (_pipe_to_client_write.count(fd)) {
+                writeCgiPipe(i, fd);
             } else if (_clients.count(fd) == 0) {
                 if (_poll_fds[i].revents & POLLIN) {
                     struct sockaddr_in addr;
@@ -303,7 +327,6 @@ void WebServ::run(void) {
         pfd.revents = 0;
         _poll_fds.push_back(pfd);
     }
-
     // event loop
     while (_running) {
         int ret = poll(&_poll_fds[0], _poll_fds.size(), TIMEOUT);
