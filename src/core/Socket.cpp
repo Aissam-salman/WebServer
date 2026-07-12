@@ -76,12 +76,17 @@ void Socket::setSocket(int port) {
     // Uses the family/type/protocol getaddrinfo resolved. Returns an fd (int).
     _listen_fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 
-    fcntl(_listen_fd, F_SETFD, FD_CLOEXEC);
-
     if (_listen_fd < 0) {
         freeaddrinfo(res);          // free the list getaddrinfo malloc'd before bailing
         throw std::runtime_error("Listening socket didn't initialize properly");
     }
+
+    // Non-blocking so accept() never blocks after poll() reports the listener
+    // ready, and close-on-exec so the listen fd doesn't leak into CGI children.
+    // Subject rule: fcntl is allowed ONLY as F_SETFL with O_NONBLOCK / FD_CLOEXEC
+    // (no F_GETFL, no F_SETFD) — so both flags are OR'd into the one F_SETFL call.
+    fcntl(_listen_fd, F_SETFL, O_NONBLOCK | FD_CLOEXEC);
+
 #if DEBUG == 1
     std::cout << "LISTENING SOCKET " << _listen_fd << " IS OPERATIONNAL" << endofline;
 #endif

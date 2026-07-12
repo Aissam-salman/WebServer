@@ -3,6 +3,7 @@
 #
 # Usage:   ./tests/eval_tests.sh
 #          CONF=webserv.conf PORT=8090 VHOST_PORT=8110 ./tests/eval_tests.sh
+#          SLOW_FILE=/uploads/test.png ./tests/eval_tests.sh   # slow-reader target
 #
 # It builds (if needed), boots the server on its own, runs black-box assertions
 # with curl / nc / siege / ab, then tears the server down and prints a summary.
@@ -17,11 +18,13 @@ cd "$ROOT" || exit 2
 BIN="./WebServ"
 CONF="${CONF:-webserv.conf}"
 ADDR="${ADDR:-127.0.0.1}"
-PORT="${PORT:-8090}"
-VHOST_PORT="${VHOST_PORT:-8110}"
+PORT="${PORT:-8090}"          # server 'localhost' UNIQUE port
+VHOST_PORT="${VHOST_PORT:-8110}"  # SHARED port (both servers listen)
+SRV2_PORT="${SRV2_PORT:-8130}"    # server 'tchoutchou' UNIQUE port
 VHOST="${VHOST:-tchoutchou}"
 UPLOAD_LOC="${UPLOAD_LOC:-/uploads/}"
 CGI_PATH="${CGI_PATH:-/cgi-bin/serve.py}"
+SLOW_FILE="${SLOW_FILE:-/uploads/test.png}"  # a largish static file for the slow-reader test
 
 PASS=0; FAIL=0; SKIP=0
 if [ -t 1 ]; then G=$'\033[1;32m'; R=$'\033[1;31m'; Y=$'\033[1;33m'; B=$'\033[1;36m'; Z=$'\033[0m'
@@ -147,6 +150,114 @@ else no "vhost localhost: DELETE /cgi-bin allowed" "got 405"; fi
 # default server: unknown Host on the shared port falls back to the first block (localhost)
 eq "unknown Host -> default server (/old -> /files)" /files \
    "$(loc --resolve foo.example:$VHOST_PORT:$ADDR http://foo.example:$VHOST_PORT/old)"
+
+# ------------------------------------------- per-port server routing ----------
+# Port layout in webserv.conf:
+#   :$PORT       (8090) — ONLY server 'localhost'  (its UNIQUE port)
+#   :$VHOST_PORT (8110) — SHARED by both servers    (selected by Host header)
+#   :$SRV2_PORT  (8130) — ONLY server '$VHOST'      (its UNIQUE port)
+# Discriminator: GET /old redirects to /files on server1, /new on server2.
+# - The SHARED-port checks prove BOTH servers are reachable on :$VHOST_PORT.
+# - The UNIQUE-port checks prove each port is served by ITS server no matter what
+#   Host is sent (the other server does not listen there, so it can't answer).
+# These FAIL today: every request is served from servers_vector[0] (server1),
+# so the shared-port $VHOST case and BOTH unique :$SRV2_PORT cases return /files.
+section "Per-port server routing"
+
+# reachability: each port answers at all
+eq "unique :$PORT reachable (server1)"  200 "$(code $BASE/)"
+eq "shared :$VHOST_PORT reachable"      200 "$(code http://$ADDR:$VHOST_PORT/)"
+eq "unique :$SRV2_PORT reachable (server2)" 200 "$(code http://$ADDR:$SRV2_PORT/)"
+
+# SHARED :$VHOST_PORT — reachable by BOTH servers, chosen by Host
+eq "shared :$VHOST_PORT Host localhost -> server1 (/old->/files)" /files \
+   "$(loc --resolve localhost:$VHOST_PORT:$ADDR http://localhost:$VHOST_PORT/old)"
+eq "shared :$VHOST_PORT Host $VHOST -> server2 (/old->/new)"      /new \
+   "$(loc --resolve $VHOST:$VHOST_PORT:$ADDR http://$VHOST:$VHOST_PORT/old)"
+
+# UNIQUE :$PORT — server1 only; even a $VHOST Host stays server1 (server2 absent here)
+eq "unique :$PORT default -> server1 (/old->/files)"        /files "$(loc $BASE/old)"
+eq "unique :$PORT Host $VHOST still server1 (/old->/files)" /files \
+   "$(loc --resolve $VHOST:$PORT:$ADDR http://$VHOST:$PORT/old)"
+
+# UNIQUE :$SRV2_PORT — server2 only; even a localhost Host stays server2 (server1 absent here)
+eq "unique :$SRV2_PORT default -> server2 (/old->/new)"          /new \
+   "$(loc http://$ADDR:$SRV2_PORT/old)"
+eq "unique :$SRV2_PORT Host localhost still server2 (/old->/new)" /new \
+   "$(loc --resolve localhost:$SRV2_PORT:$ADDR http://localhost:$SRV2_PORT/old)"
+
+# ------------------------------------------------- non-blocking I/O -----------
+# The whole subject hinges on ONE non-blocking poll() loop: a single slow or
+# stalled client must NEVER freeze service for everyone else. Each check parks a
+# pathological client (half-open, idle, drip-feeding, or reading slowly) and then
+# asserts that a normal GET on a *different* connection still returns 200 promptly.
+# A blocking read/write/accept anywhere would make `responsive` hang and FAIL.
+section "Non-blocking I/O (slow clients)"
+
+# responsive: is the server answering GET / with 200 in well under 3s right now?
+responsive() { [ "$(code -m 3 "$BASE/")" = "200" ]; }
+
+if responsive; then ok "baseline responsive before slow-client tests"
+else no "baseline responsive" "GET / not 200 in <3s"; fi
+
+if command -v nc >/dev/null 2>&1; then
+  # 1. half-open request: send partial headers, never terminate them, hold ~5s.
+  ( printf 'GET / HTTP/1.1\r\nHost: %s\r\n' "$ADDR"; sleep 5 ) | nc "$ADDR" "$PORT" >/dev/null 2>&1 &
+  STALL=$!; sleep 0.3
+  if responsive; then ok "responsive while a client holds a half-open request"
+  else no "half-open client blocks server" "concurrent GET not 200 in <3s"; fi
+  kill "$STALL" 2>/dev/null; wait "$STALL" 2>/dev/null
+
+  # 2. idle connection: connect, send absolutely nothing, hold ~5s.
+  ( sleep 5 ) | nc "$ADDR" "$PORT" >/dev/null 2>&1 &
+  IDLE=$!; sleep 0.3
+  if responsive; then ok "responsive while a client is connected but idle (sends nothing)"
+  else no "idle client blocks server" "concurrent GET not 200 in <3s"; fi
+  kill "$IDLE" 2>/dev/null; wait "$IDLE" 2>/dev/null
+
+  # 3. drip-fed request: one byte every 200ms — exercises resumable read parsing
+  #    (server must buffer a partial request across many poll() wakeups).
+  drip() {
+    local req i
+    req="$(printf 'GET / HTTP/1.1\r\nHost: %s\r\n\r\n' "$1")"
+    for (( i=0; i<${#req}; i++ )); do printf '%s' "${req:i:1}"; sleep 0.2; done
+  }
+  drip "$ADDR" | nc -w 20 "$ADDR" "$PORT" >/dev/null 2>&1 &
+  DRIP=$!; sleep 0.5
+  if responsive; then ok "responsive while a client drip-feeds a request (1 byte / 200ms)"
+  else no "drip-fed client blocks server" "concurrent GET not 200 in <3s"; fi
+  kill "$DRIP" 2>/dev/null; wait "$DRIP" 2>/dev/null
+
+  # 4. many idle connections at once: no per-client thread, so every one must
+  #    simply park in the poll() set without starving the accept()/serve path.
+  NIDLE=30; IPIDS=""
+  for _ in $(seq 1 "$NIDLE"); do
+    ( sleep 5 ) | nc "$ADDR" "$PORT" >/dev/null 2>&1 & IPIDS="$IPIDS $!"
+  done
+  sleep 0.5
+  if responsive; then ok "responsive with $NIDLE idle connections open at once"
+  else no "$NIDLE idle connections block server" "concurrent GET not 200 in <3s"; fi
+  for p in $IPIDS; do kill "$p" 2>/dev/null; wait "$p" 2>/dev/null; done
+else
+  skip "slow-client tests (half-open / idle / drip / N-idle)" "nc not installed"
+fi
+
+# 5. slow reader: download a ~90KB file at 2 KB/s so the response can't flush in
+#    one write() — the write-side connection stays open ~45s and must not block
+#    the loop (this is where a naive blocking write() would stall everyone).
+SLOW_URL="$BASE$SLOW_FILE"
+if [ "$(code -m 3 "$SLOW_URL")" = "200" ]; then
+  curl -s -o /dev/null --limit-rate 2k -m 60 "$SLOW_URL" &
+  SLOWR=$!; sleep 0.5
+  if responsive; then ok "responsive while a client downloads slowly (2 KB/s, write-side)"
+  else no "slow reader blocks server" "concurrent GET not 200 in <3s"; fi
+  kill "$SLOWR" 2>/dev/null; wait "$SLOWR" 2>/dev/null
+else
+  skip "slow reader (write-side)" "no static file served at $SLOW_FILE (set SLOW_FILE=)"
+fi
+
+kill -0 "$SRV" 2>/dev/null && ok "server alive after slow-client tests" \
+  || no "server alive after slow-client tests" "process died"
 
 # ------------------------------------------------------------------ stress -----
 section "Stress (siege / ab) & leak sanity"

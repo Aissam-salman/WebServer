@@ -91,13 +91,17 @@ void WebServ::readCgiPipe(size_t &i, int fd) {
 }
 
 // create client class, and poll_fd for client and add to pollfds
-void WebServ::acceptNewClient(int listen_fd) {
+void WebServ::acceptNewClient(int client_fd) {
 
-    fcntl(listen_fd, F_SETFD, FD_CLOEXEC);
+    // Non-blocking is mandatory: recv()/handleSend() run on this fd inside the
+    // single poll() loop, so a blocking socket would let one slow peer stall the
+    // whole server. Subject rule: fcntl is allowed ONLY as F_SETFL with
+    // O_NONBLOCK / FD_CLOEXEC (no F_GETFL, no F_SETFD) — OR both into one call.
+    fcntl(client_fd, F_SETFL, O_NONBLOCK | FD_CLOEXEC);
     // TODO: pick Server by Host header / listener instead of a global max size.
-    _clients[listen_fd] =
-        Client(listen_fd, Request(), _servers[0].getMaxBodySize());
-    _poll_fds.push_back(_clients[listen_fd].getPollfd());
+    _clients[client_fd] =
+        Client(client_fd, Request(), _servers[0].getMaxBodySize());
+    _poll_fds.push_back(_clients[client_fd].getPollfd());
 }
 
 void WebServ::closeClient(size_t &i, int fd) {
@@ -118,6 +122,10 @@ void WebServ::handleCgi(Client &client, int fd) {
     cgi.run();
     pollfd pfd;
     pfd.fd = client.getCgiPipefd();
+    // This pipe read end goes into the poll() set, so it must be non-blocking too:
+    // a blocking read on a slow/stuck CGI would freeze the whole loop. Same subject
+    // rule — one F_SETFL call, O_NONBLOCK | FD_CLOEXEC OR'd together.
+    fcntl(pfd.fd, F_SETFL, O_NONBLOCK | FD_CLOEXEC);
     pfd.events = POLLIN;
     _poll_fds.push_back(pfd);
     _pipe_to_client[client.getCgiPipefd()] = fd;
@@ -133,6 +141,7 @@ void WebServ::handleReq(Client &client, int i) {
 }
 
 // if catch std::runtime_error in clientRead catch
+// TODO : Discuss : Only using the server[0] error page when we have 
 void WebServ::responseError(std::runtime_error &e, int i, Client &client) {
     int code = std::atoi(e.what());
     if (code == 0)

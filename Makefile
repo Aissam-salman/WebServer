@@ -23,6 +23,7 @@ LDFLAGS  =
 # ============== SRC-FILES ===================
 SERVER_SRC = \
     $(CORE_DIR)/main.cpp \
+    $(CORE_DIR)/WebServ.cpp \
     $(CORE_DIR)/Server.cpp \
     $(CORE_DIR)/Location.cpp \
     $(CORE_DIR)/Socket.cpp \
@@ -76,6 +77,9 @@ fclean: clean
 re: fclean all
 
 # ============== MEMORY-CHECK TARGETS ========
+
+CONF_FILE= webserv.conf
+
 debug: CXXFLAGS += $(DEBUG_FLAGS)
 debug: re
 
@@ -89,12 +93,12 @@ asan: re
 
 leaks: debug
 	@if [ "$$(uname)" = "Darwin" ]; then \
-		echo "macOS: leaks --atExit — $(SERVER)"; \
-		MallocStackLogging=1 leaks --atExit -- ./$(SERVER); \
+		echo "macOS: leaks --atExit — $(NAME)"; \
+		MallocStackLogging=1 leaks --atExit -- ./$(NAME) $(CONF_FILE); \
 	else \
-		echo "Linux: valgrind --leak-check=full — $(SERVER)"; \
+		echo "Linux: valgrind --leak-check=full — $(NAME)"; \
 		valgrind --leak-check=full --show-leak-kinds=all \
-		         --track-origins=yes --error-exitcode=1 ./$(SERVER); \
+		         --track-origins=yes --error-exitcode=1 ./$(NAME) $(CONF_FILE); \
 	fi
 
 # ============== WATCH MODE ==================
