@@ -236,40 +236,49 @@ void WebServ::loopPollFds(void) {
     // indexed loop: closeClient() erases entries and does i--, so we mutate
     // the container mid-iteration and re-check size() each turn
     for (size_t i = 0; i < _poll_fds.size(); i++) {
-        int fd = _poll_fds[i].fd;
+        try {
 
-        // nothing happened on this fd this round
-        if (!_poll_fds[i].revents)
-            continue;
+            int fd = _poll_fds[i].fd;
 
-        // case 1: a cgi output pipe has data or eof
-        if (_pipe_to_client.count(fd)) {
-            readCgiPipe(i, fd);
-        // case 2: a listening socket has a new connection to accept
-        } else if (_clients.count(fd) == 0) {
-            if (_poll_fds[i].revents & POLLIN) {
-                struct sockaddr_in addr;
-                socklen_t addrlen = sizeof(addr);
-                int client_fd =
-                    accept(fd, reinterpret_cast<struct sockaddr *>(&addr),
-                           &addrlen);
-                // accept failed (client vanished): ignore
-                if (client_fd < 0)
-                    continue;
-                acceptNewClient(client_fd, formatPeer(addr));
+            // nothing happened on this fd this round
+            if (!_poll_fds[i].revents)
+                continue;
+
+            // case 1: a cgi output pipe has data or eof
+            if (_pipe_to_client.count(fd)) {
+                readCgiPipe(i, fd);
+            // case 2: a listening socket has a new connection to accept
+            } else if (_clients.count(fd) == 0) {
+                if (_poll_fds[i].revents & POLLIN) {
+                    struct sockaddr_in addr;
+                    socklen_t addrlen = sizeof(addr);
+                    int client_fd =
+                        accept(fd, reinterpret_cast<struct sockaddr *>(&addr),
+                               &addrlen);
+                    // accept failed (client vanished): ignore
+                    if (client_fd < 0)
+                        continue;
+                    acceptNewClient(client_fd, formatPeer(addr));
+                }
+            // case 3: an established client connection
+            } else {
+                // client sent bytes: read/parse the request
+                if (_poll_fds[i].revents & POLLIN)
+                    clientRead(i, fd);
+                // socket writable: flush (part of) the response
+                else if (_poll_fds[i].revents & POLLOUT) {
+                    clientWrite(i, fd);
+                // peer hung up or socket errored: tear it down
+                } else if (_poll_fds[i].revents & (POLLHUP | POLLERR)) {
+                    closeClient(i, fd);
+                }
             }
-        // case 3: an established client connection
-        } else {
-            // client sent bytes: read/parse the request
-            if (_poll_fds[i].revents & POLLIN)
-                clientRead(i, fd);
-            // socket writable: flush (part of) the response
-            else if (_poll_fds[i].revents & POLLOUT) {
-                clientWrite(i, fd);
-            // peer hung up or socket errored: tear it down
-            } else if (_poll_fds[i].revents & (POLLHUP | POLLERR)) {
-                closeClient(i, fd);
-            }
+        } catch (std::runtime_error &e) {
+            std::cerr << "Error: loopPoll: " << e.what() << std::endl;
+        } catch (std::exception &e) {
+            std::cerr << "Error: loopPoll: " << e.what() << std::endl;
+        } catch (...) {
+            std::cerr << "Error: loopPoll: ?" << std::endl;
         }
     }
     // reap any finished cgi children
