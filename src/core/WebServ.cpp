@@ -90,7 +90,13 @@ void WebServ::switchFdsToPollout(int client_fd) {
 // POLLOUT
 void WebServ::readCgiPipe(size_t &i, int fd) {
     int client_fd = _pipe_to_client[fd];
-    Client &client = _clients[client_fd];
+    std::map< int, Client>::iterator client_pos = _clients.find(client_fd);
+    if (client_pos == _clients.end()) {
+        _pipe_to_client.erase(fd);
+        closeClient(i, fd);
+        return;
+    }
+    Client &client = client_pos->second;
     char buf[STD_BUFFER];
     int n = read(fd, buf, sizeof(buf));
     if (n < 0) {
@@ -115,7 +121,13 @@ void WebServ::readCgiPipe(size_t &i, int fd) {
 
 void WebServ::writeCgiPipe(size_t &i, int fd) {
     int client_fd = _pipe_to_client_write[fd];
-    Client &client = _clients[client_fd];
+    std::map< int, Client>::iterator client_pos = _clients.find(client_fd);
+    if (client_pos == _clients.end()) {
+        _pipe_to_client_write.erase(fd);
+        closeClient(i, fd);
+        return;
+    }
+    Client &client = client_pos->second;
     bool isDone = client.handleSendCgi();
     if (!isDone) {
         _pipe_to_client_write.erase(fd);
