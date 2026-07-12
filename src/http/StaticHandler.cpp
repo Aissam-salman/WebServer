@@ -171,6 +171,13 @@ std::string StaticHandler::generateAutoindex(const std::string &path) const {
     throw std::runtime_error("403");
   // construit la liste  de fichiers dans le dossier bonus css jespere ca marche
   // lol
+  // base href : la resource demandee, garantie de finir par '/'
+  // (sinon le navigateur resout les liens relatifs par rapport au parent,
+  // ex: /uploads + "backtracking.pdf" -> /backtracking.pdf au lieu de /uploads/backtracking.pdf)
+  std::string base = _request.getResource();
+  if (base.empty() || base[base.length() - 1] != '/')
+    base += '/';
+
   std::ostringstream html;
   html << "<html><head><title>Index of " << _request.getResource() << "</title>"
        << "<style>body{font-family:monospace;padding:20px}"
@@ -184,7 +191,7 @@ std::string StaticHandler::generateAutoindex(const std::string &path) const {
                                       // struct systeme dirent
     if (name == ".")
       continue;
-    html << "<a href=\"" << name;
+    html << "<a href=\"" << base << name;
     if (entry->d_type == DT_DIR) // d_type == type du repertoire(dossier ou
                                  // fichier), DT_DIR == cest un dossier ?
       html << "/";

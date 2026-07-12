@@ -133,21 +133,11 @@ Server &WebServ::resolveServer(Client &client) {
     if (listener == NULL || listener->getLinkedServers().empty())
         return (_servers[0]);
 
-    std::vector<Server *> &candidates = listener->getLinkedServers();
-
     std::map<std::string, std::string>::const_iterator hit =
         client._request.getHeaders().find("Host");
-
     std::string host = (hit != client._request.getHeaders().end()) ? hit->second : "";
-    size_t colon = host.find(':');
-    if (colon != std::string::npos)
-        host = host.substr(0, colon);
 
-    for (size_t i = 0; i < candidates.size(); i++) {
-        if (candidates[i]->getServerName() == host)
-            return (*candidates[i]);
-    }
-    return (*candidates[0]); // no Host match -> nginx-style default server
+    return (*matchServerByHost(listener->getLinkedServers(), host));
 }
 
 // CREATE THE CLIENT AND ITS POLLFD, THEN ADD IT TO THE POLL SET (NO PEER)
@@ -182,6 +172,14 @@ void WebServ::closeClient(size_t &i, int fd) {
 
 // FORK/EXEC THE CGI AND REGISTER ITS OUTPUT PIPE IN THE POLL SET
 void WebServ::handleCgi(Client &client, int fd) {
+    Server &server = resolveServer(client);
+    Location &location = StaticHandler::findLocation(server.getLocations(),
+                                                       client._request.getResource());
+    std::map<std::string, e_methods>::const_iterator mit =
+        getMethodMap().find(client._request.getMethod());
+    if (mit == getMethodMap().end() || (location.getMethodFlag() & mit->second) == 0)
+        throw std::runtime_error("405");
+
     // TODO(discuss): was Cgi(_languages_supported, client); passing an empty
     // list for now since that member is commented out (see WebServ.hpp).
     Cgi cgi(std::vector<std::string>(), client);
@@ -198,8 +196,8 @@ void WebServ::handleCgi(Client &client, int fd) {
 
 // SERVE A STATIC REQUEST: BUILD THE RESPONSE AND SWITCH TO POLLOUT
 void WebServ::handleReq(Client &client, int i) {
-    // TODO: pick Server by Host header / listener instead of always _servers[0].
-    StaticHandler handler(client._request, _servers[0].getLocations());
+    Server &server = resolveServer(client);
+    StaticHandler handler(client._request, server.getLocations());
     Response response = handler.handle();
     std::string bu = response.build();
     client.setResponse(bu);
@@ -212,8 +210,7 @@ void WebServ::responseError(std::runtime_error &e, int i, Client &client) {
     int code = std::atoi(e.what());
     if (code == 0)
         code = 500;
-    // TODO: pick Server by Host header / listener instead of always _servers[0].
-    Response response = buildErrorResponse(code, _servers[0].getErrorPages());
+    Response response = buildErrorResponse(code, resolveServer(client).getErrorPages());
     std::string bu = response.build();
     client.setResponse(bu);
     _poll_fds[i].events = POLLOUT;

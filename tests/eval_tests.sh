@@ -126,9 +126,11 @@ fi
 # ---------------------------------------------------- virtual hosts (Host) ----
 # Both server blocks in webserv.conf share :$VHOST_PORT (server_name localhost vs
 # $VHOST). These checks send the SAME url to the SAME port and vary ONLY the Host
-# header, then assert behaviour that DIFFERS between the two blocks. They will FAIL
-# until Host/server_name routing is implemented (today every request is answered
-# from servers_vector[0], so both hosts get the localhost block's config).
+# header, then assert behaviour that DIFFERS between the two blocks.
+#
+# Discriminator: /cgi-bin method set differs per block (localhost = GET POST DELETE,
+# $VHOST = GET POST only). /old is NOT usable as a discriminator: both blocks redirect
+# it to /files (see webserv.conf), so a bare Location-header match proves nothing.
 section "Virtual hosts (Host routing)"
 RA="--resolve localhost:$VHOST_PORT:$ADDR http://localhost:$VHOST_PORT"
 RB="--resolve $VHOST:$VHOST_PORT:$ADDR http://$VHOST:$VHOST_PORT"
@@ -137,31 +139,31 @@ RB="--resolve $VHOST:$VHOST_PORT:$ADDR http://$VHOST:$VHOST_PORT"
 eq "Host localhost reaches :$VHOST_PORT" 200 "$(code $RA/)"
 eq "Host $VHOST reaches :$VHOST_PORT"    200 "$(code $RB/)"
 
-# discriminator 1: /old redirect target differs per block (localhost=/files, $VHOST=/new)
+# sanity: /old redirect target agrees on both blocks (not a discriminator, both -> /files)
 eq "vhost localhost: /old -> /files" /files "$(loc $RA/old)"
-eq "vhost $VHOST: /old -> /new"      /new   "$(loc $RB/old)"
+eq "vhost $VHOST: /old -> /files"    /files "$(loc $RB/old)"
 
-# discriminator 2: /cgi-bin method set differs ($VHOST = GET POST, no DELETE)
+# discriminator: /cgi-bin method set differs ($VHOST = GET POST, no DELETE)
 eq "vhost $VHOST: DELETE /cgi-bin -> 405" 405 "$(code -X DELETE $RB$CGI_PATH)"
 NE=$(code -X DELETE $RA$CGI_PATH)
 if [ "$NE" != "405" ]; then ok "vhost localhost: DELETE /cgi-bin allowed (=$NE)"
 else no "vhost localhost: DELETE /cgi-bin allowed" "got 405"; fi
 
-# default server: unknown Host on the shared port falls back to the first block (localhost)
-eq "unknown Host -> default server (/old -> /files)" /files \
-   "$(loc --resolve foo.example:$VHOST_PORT:$ADDR http://foo.example:$VHOST_PORT/old)"
+# default server: unknown Host on the shared port falls back to the first block (localhost),
+# so DELETE /cgi-bin must be allowed there too (not 405)
+UNK=$(code -X DELETE --resolve foo.example:$VHOST_PORT:$ADDR http://foo.example:$VHOST_PORT$CGI_PATH)
+if [ "$UNK" != "405" ]; then ok "unknown Host -> default server, DELETE /cgi-bin allowed (=$UNK)"
+else no "unknown Host -> default server" "got 405 (should behave like localhost)"; fi
 
 # ------------------------------------------- per-port server routing ----------
 # Port layout in webserv.conf:
 #   :$PORT       (8090) — ONLY server 'localhost'  (its UNIQUE port)
 #   :$VHOST_PORT (8110) — SHARED by both servers    (selected by Host header)
 #   :$SRV2_PORT  (8130) — ONLY server '$VHOST'      (its UNIQUE port)
-# Discriminator: GET /old redirects to /files on server1, /new on server2.
+# Discriminator: DELETE /cgi-bin -> allowed on server1 (localhost), 405 on server2 ($VHOST).
 # - The SHARED-port checks prove BOTH servers are reachable on :$VHOST_PORT.
 # - The UNIQUE-port checks prove each port is served by ITS server no matter what
 #   Host is sent (the other server does not listen there, so it can't answer).
-# These FAIL today: every request is served from servers_vector[0] (server1),
-# so the shared-port $VHOST case and BOTH unique :$SRV2_PORT cases return /files.
 section "Per-port server routing"
 
 # reachability: each port answers at all
@@ -170,21 +172,25 @@ eq "shared :$VHOST_PORT reachable"      200 "$(code http://$ADDR:$VHOST_PORT/)"
 eq "unique :$SRV2_PORT reachable (server2)" 200 "$(code http://$ADDR:$SRV2_PORT/)"
 
 # SHARED :$VHOST_PORT — reachable by BOTH servers, chosen by Host
-eq "shared :$VHOST_PORT Host localhost -> server1 (/old->/files)" /files \
-   "$(loc --resolve localhost:$VHOST_PORT:$ADDR http://localhost:$VHOST_PORT/old)"
-eq "shared :$VHOST_PORT Host $VHOST -> server2 (/old->/new)"      /new \
-   "$(loc --resolve $VHOST:$VHOST_PORT:$ADDR http://$VHOST:$VHOST_PORT/old)"
+S1=$(code -X DELETE --resolve localhost:$VHOST_PORT:$ADDR http://localhost:$VHOST_PORT$CGI_PATH)
+if [ "$S1" != "405" ]; then ok "shared :$VHOST_PORT Host localhost -> server1 (DELETE allowed, =$S1)"
+else no "shared :$VHOST_PORT Host localhost -> server1" "got 405"; fi
+eq "shared :$VHOST_PORT Host $VHOST -> server2 (DELETE /cgi-bin -> 405)" 405 \
+   "$(code -X DELETE --resolve $VHOST:$VHOST_PORT:$ADDR http://$VHOST:$VHOST_PORT$CGI_PATH)"
 
 # UNIQUE :$PORT — server1 only; even a $VHOST Host stays server1 (server2 absent here)
-eq "unique :$PORT default -> server1 (/old->/files)"        /files "$(loc $BASE/old)"
-eq "unique :$PORT Host $VHOST still server1 (/old->/files)" /files \
-   "$(loc --resolve $VHOST:$PORT:$ADDR http://$VHOST:$PORT/old)"
+U1=$(code -X DELETE $BASE$CGI_PATH)
+if [ "$U1" != "405" ]; then ok "unique :$PORT default -> server1 (DELETE allowed, =$U1)"
+else no "unique :$PORT default -> server1" "got 405"; fi
+U2=$(code -X DELETE --resolve $VHOST:$PORT:$ADDR http://$VHOST:$PORT$CGI_PATH)
+if [ "$U2" != "405" ]; then ok "unique :$PORT Host $VHOST still server1 (DELETE allowed, =$U2)"
+else no "unique :$PORT Host $VHOST still server1" "got 405"; fi
 
 # UNIQUE :$SRV2_PORT — server2 only; even a localhost Host stays server2 (server1 absent here)
-eq "unique :$SRV2_PORT default -> server2 (/old->/new)"          /new \
-   "$(loc http://$ADDR:$SRV2_PORT/old)"
-eq "unique :$SRV2_PORT Host localhost still server2 (/old->/new)" /new \
-   "$(loc --resolve localhost:$SRV2_PORT:$ADDR http://localhost:$SRV2_PORT/old)"
+eq "unique :$SRV2_PORT default -> server2 (DELETE /cgi-bin -> 405)" 405 \
+   "$(code -X DELETE http://$ADDR:$SRV2_PORT$CGI_PATH)"
+eq "unique :$SRV2_PORT Host localhost still server2 (DELETE /cgi-bin -> 405)" 405 \
+   "$(code -X DELETE --resolve localhost:$SRV2_PORT:$ADDR http://localhost:$SRV2_PORT$CGI_PATH)"
 
 # ------------------------------------------------- non-blocking I/O -----------
 # The whole subject hinges on ONE non-blocking poll() loop: a single slow or

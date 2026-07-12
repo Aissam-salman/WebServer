@@ -118,22 +118,12 @@ void Client::resolveMaxBodySize(void) {
     size_t val_start = host_pos + 7;
     size_t val_end = _buffer_read.find("\r\n", val_start);
     host = trimWs(_buffer_read.substr(val_start, val_end - val_start));
-    size_t colon = host.find(':');
-    if (colon != std::string::npos)
-      host = host.substr(0, colon);
   }
 
   if (_listener == NULL || _listener->getLinkedServers().empty())
     return;
 
-  std::vector<Server *> &candidates = _listener->getLinkedServers();
-  Server *server = candidates[0];
-  for (size_t i = 0; i < candidates.size(); i++) {
-    if (candidates[i]->getServerName() == host) {
-      server = candidates[i];
-      break;
-    }
-  }
+  Server *server = matchServerByHost(_listener->getLinkedServers(), host);
 
   try {
     Location &location = StaticHandler::findLocation(server->getLocations(), resource);

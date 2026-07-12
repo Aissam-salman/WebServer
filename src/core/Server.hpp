@@ -69,5 +69,6 @@ Listener *findListener(std::vector<Listener> &listeners_vector,
 Listener *findListenerByFd(std::vector<Listener> &listeners_vector, int fd);
 void printListeners(std::vector<Listener> &listeners);
 void setupListeners(std::vector<Listener> &listeners);
+Server *matchServerByHost(std::vector<Server *> &candidates, const std::string &host);
 
 #endif

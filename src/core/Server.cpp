@@ -113,6 +113,24 @@ Listener *findListenerByFd(std::vector<Listener> &listeners_vector, int fd) {
     return (NULL);
 }
 
+// PICKS THE CANDIDATE WHOSE NAME MATCHES HOST (PORT SUFFIX STRIPPED),
+// OR THE FIRST CANDIDATE IF NONE MATCH (NGINX-STYLE DEFAULT SERVER)
+Server *matchServerByHost(std::vector<Server *> &candidates, const std::string &host_in) {
+    if (candidates.empty())
+        return (NULL);
+
+    std::string host = host_in;
+    size_t colon = host.find(':');
+    if (colon != std::string::npos)
+        host = host.substr(0, colon);
+
+    for (size_t i = 0; i < candidates.size(); i++) {
+        if (candidates[i]->getServerName() == host)
+            return (candidates[i]);
+    }
+    return (candidates[0]);
+}
+
 // BUILD ONE LISTENER PER UNIQUE HOST:PORT, LINKING SERVERS THAT SHARE IT
 std::vector<Listener> gatherListeners(std::vector<Server> &servers_vector) {
     std::vector<Listener> listener_vectors;
