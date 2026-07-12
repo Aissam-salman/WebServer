@@ -6,7 +6,7 @@
 /*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/20 18:16:11 by alamjada          #+#    #+#             */
-/*   Updated: 2026/07/11 15:40:44 by alamjada         ###   ########.fr       */
+/*   Updated: 2026/07/12 12:34:42 by alamjada         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,7 +29,7 @@ class Client {
     int _cgi_pipe_fd;
     pid_t _pid;
     std::string _buffer_cgi;
-    long _max_body_size;
+    size_t _max_body_size;
     size_t _counter_trash;
 
   public:

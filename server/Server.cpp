@@ -10,8 +10,10 @@
 #include <csignal>
 #include <cstddef>
 #include <cstdlib>
+#include <exception>
 #include <fcntl.h>
 #include <iostream>
+#include <map>
 #include <stdexcept>
 #include <string>
 #include <sys/poll.h>
@@ -19,13 +21,16 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <vector>
-#include <map>
 
 bool Server::_running = true;
 
 // ==== ~TORS ====
 Server::Server(void)
-    : _name(""), _error_pages(initErrorPages()), _max_body_size(0) {}
+    : _name(""), _error_pages(initErrorPages()), _max_body_size(0) {
+    signal(SIGINT, handle_sigint);
+    _languages_supported.push_back("python");
+    _languages_supported.push_back("php");
+}
 
 Server::Server(std::string name)
     : _name(name), _error_pages(initErrorPages()), _max_body_size(-1) {
@@ -106,7 +111,7 @@ void Server::printServer(void) {
 
 void Server::handle_sigint(int) {
     Server::_running = false;
-    std::cerr << "SIGNAL RECEIVED" << std::endl;
+    std::cout << " SIGNAL RECEIVED" << std::endl;
 }
 
 // ==== LISTENER ====
@@ -240,6 +245,7 @@ void Server::handleCgi(Client &client, int fd) {
     pollfd pfd;
     pfd.fd = client.getCgiPipefd();
     pfd.events = POLLIN;
+    pfd.revents = 0;
     _poll_fds.push_back(pfd);
     _pipe_to_client[client.getCgiPipefd()] = fd;
 }
@@ -276,16 +282,18 @@ void Server::clientRead(size_t &i, int fd) {
         try {
             client._request.parseRequest(client.getBufferRead());
 
-
-          //GET LOCATION MATCH WITH URL, AND ADD SCRIPT FILENAME TO RUN EXECVE
-            Location loc = StaticHandler::findLocation( _locations_vector, client._request.getResource());
+            // GET LOCATION MATCH WITH URL, AND ADD SCRIPT FILENAME TO RUN
+            // EXECVE
+            Location loc = StaticHandler::findLocation(
+                _locations_vector, client._request.getResource());
 
             std::map<std::string, std::string>::const_iterator script_name =
                 client._request.getCgi_env().find("SCRIPT_NAME");
 
             if (script_name != client._request.getCgi_env().end()) {
-              std::string root_doc = StaticHandler::resolvePath(loc, script_name->second);
-              client._request.addToCgiEnv( "SCRIPT_FILENAME", root_doc);
+                std::string root_doc =
+                    StaticHandler::resolvePath(loc, script_name->second);
+                client._request.addToCgiEnv("SCRIPT_FILENAME", root_doc);
             }
 
             if (client._request.isCGI())
@@ -326,56 +334,66 @@ void Server::loopPollFds(void) {
     // We also re-check .size() each turn because acceptNewClient()/handleCgi()
     // push_back new fds while we loop.
     for (size_t i = 0; i < _poll_fds.size(); i++) {
-        int fd = _poll_fds[i].fd;
+        try {
+            int fd = _poll_fds[i].fd;
 
-        // .revents == 0 -> poll() reported nothing happened on this fd this
-        // round. Skip it; only fds with a pending event are worth handling.
-        if (!_poll_fds[i].revents)
-            continue;
+            // .revents == 0 -> poll() reported nothing happened on this fd this
+            // round. Skip it; only fds with a pending event are worth handling.
+            if (!_poll_fds[i].revents)
+                continue;
 
-        // --- Case 1: this fd is a CGI output pipe
-        // ------------------------------- The key exists in _pipe_to_client,
-        // i.e. it maps this pipe's read-end back to the client that launched
-        // the CGI. Data (or EOF) is ready from the script's stdout;
-        // readCgiPipe() accumulates it and, on EOF, builds the HTTP response
-        // and flips the client to POLLOUT.
-        if (_pipe_to_client.count(fd)) {
-            readCgiPipe(i, fd);
+            // --- Case 1: this fd is a CGI output pipe
+            // ------------------------------- The key exists in
+            // _pipe_to_client, i.e. it maps this pipe's read-end back to the
+            // client that launched the CGI. Data (or EOF) is ready from the
+            // script's stdout; readCgiPipe() accumulates it and, on EOF, builds
+            // the HTTP response and flips the client to POLLOUT.
+            if (_pipe_to_client.count(fd)) {
+                readCgiPipe(i, fd);
 
-            // --- Case 2: this fd is a listening socket
-            // ------------------------------ Not a client (count == 0) and
-            // (from the else-if order) not a pipe either, so it must be one of
-            // our bound listeners. A POLLIN here means a brand-new connection
-            // is waiting: accept() it and register the new client fd. NOTE (CP3
-            // TODO): we don't yet know WHICH Listener this fd belongs to, so
-            // the accepted client can't carry its candidate servers yet.
-        } else if (_clients.count(fd) == 0) {
-            if (_poll_fds[i].revents & POLLIN) {
-                int client_fd = accept(fd, NULL, NULL);
-                if (client_fd <
-                    0) // accept failed (e.g. client vanished): ignore
-                    continue;
-                acceptNewClient(
-                    client_fd); // create Client + add its fd to _poll_fds
+                // --- Case 2: this fd is a listening socket
+                // ------------------------------ Not a client (count == 0) and
+                // (from the else-if order) not a pipe either, so it must be one
+                // of our bound listeners. A POLLIN here means a brand-new
+                // connection is waiting: accept() it and register the new
+                // client fd. NOTE (CP3
+                // TODO): we don't yet know WHICH Listener this fd belongs to,
+                // so the accepted client can't carry its candidate servers yet.
+            } else if (_clients.count(fd) == 0) {
+                if (_poll_fds[i].revents & POLLIN) {
+                    int client_fd = accept(fd, NULL, NULL);
+                    if (client_fd <
+                        0) // accept failed (e.g. client vanished): ignore
+                        continue;
+                    acceptNewClient(
+                        client_fd); // create Client + add its fd to _poll_fds
+                }
+
+                // --- Case 3: this fd is an established client connection
+                // -----------------
+            } else {
+                // POLLIN: the client sent bytes -> read/parse the request (may
+                // dispatch to CGI or build a response, and switch the fd to
+                // POLLOUT when ready).
+                if (_poll_fds[i].revents & POLLIN)
+                    clientRead(i, fd);
+                // POLLOUT: the socket is writable -> flush (part of) the
+                // response; closeClient() once everything has been sent.
+                else if (_poll_fds[i].revents & POLLOUT) {
+                    clientWrite(i, fd);
+                    // POLLHUP/POLLERR: peer hung up or the socket errored ->
+                    // tear it down.
+                } else if (_poll_fds[i].revents & (POLLHUP | POLLERR)) {
+                    closeClient(i, fd);
+                }
             }
 
-            // --- Case 3: this fd is an established client connection
-            // -----------------
-        } else {
-            // POLLIN: the client sent bytes -> read/parse the request (may
-            // dispatch to CGI or build a response, and switch the fd to POLLOUT
-            // when ready).
-            if (_poll_fds[i].revents & POLLIN)
-                clientRead(i, fd);
-            // POLLOUT: the socket is writable -> flush (part of) the response;
-            // closeClient() once everything has been sent.
-            else if (_poll_fds[i].revents & POLLOUT) {
-                clientWrite(i, fd);
-                // POLLHUP/POLLERR: peer hung up or the socket errored -> tear
-                // it down.
-            } else if (_poll_fds[i].revents & (POLLHUP | POLLERR)) {
-                closeClient(i, fd);
-            }
+        } catch (std::runtime_error &e) {
+            std::cerr << "Error: loopPoll: " << e.what() << std::endl;
+        } catch (std::exception &e) {
+            std::cerr << "Error: loopPoll: " << e.what() << std::endl;
+        } catch (...) {
+            std::cerr << "Error: loopPoll: ?" << std::endl;
         }
     }
     while (waitpid(-1, NULL, WNOHANG) > 0)

@@ -6,7 +6,7 @@
 /*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/20 18:40:45 by alamjada          #+#    #+#             */
-/*   Updated: 2026/07/11 19:25:28 by alamjada         ###   ########.fr       */
+/*   Updated: 2026/07/12 12:35:37 by alamjada         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -61,7 +61,8 @@ bool Client::handleRecv(void) {
     return (_status = DONE, false);
 
   if (_status == TRASH) {
-    _counter_trash -= n;
+    long tmp = _counter_trash - n < 0 ? 0 : _counter_trash - n;
+    _counter_trash = static_cast<size_t>(tmp);
     return  true;
   }
 
@@ -88,12 +89,12 @@ bool Client::isRequestCompleted(void) {
     
     size_t body_size = _buffer_read.size() - (header_end + 4);
 
-    if (static_cast<long>(len) > _max_body_size) {
+    if (len > _max_body_size) {
       _status = TRASH;
       _counter_trash = static_cast<long>(len) - static_cast<long>(body_size);
     }
 
-    if (static_cast<long>(body_size) > _max_body_size) {
+    if (body_size > _max_body_size) {
       _status = TRASH;
       _counter_trash = static_cast<long>(len) - static_cast<long>(body_size);
     }
@@ -103,7 +104,7 @@ bool Client::isRequestCompleted(void) {
 
   size_t chunked_pos = _buffer_read.find("Transfer-Encoding: chunked");
   if (chunked_pos != std::string::npos && chunked_pos < header_end) {
-    if (static_cast<long>(_buffer_read.size()) > _max_body_size)
+    if (_buffer_read.size() > _max_body_size)
       _status = TRASH;
     // requete chunked : pas complete tant que le chunk terminal
     // "0\r\n\r\n" n'est pas arrive dans le body (apres header_end)

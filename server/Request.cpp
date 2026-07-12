@@ -3,10 +3,10 @@
 #include <cctype>
 #include <cstddef>
 #include <cstdlib>
-#include <iostream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <cstdlib>
 
 #include "utils.hpp"
 
@@ -41,7 +41,7 @@ std::string Request::decodeChunk(std::string &body_raw) {
     // ON A LA TAILLE FINALE
     std::string full_body;
     size_t start = 0;
-    size_t end = body_raw.find( "0\r\n\r\n");
+    size_t end = body_raw.find("0\r\n\r\n");
 
     // BOUCLE TANT QUE START EST INFERIEUR A LA TAILLE DU BODY
     while (start < end) {
@@ -61,7 +61,7 @@ std::string Request::decodeChunk(std::string &body_raw) {
 
         // AJOUTE AU BODY COMPLET
         full_body += chunk_body;
-        start += chunk_size + 2 ;
+        start += chunk_size + 2;
     }
 
     return full_body;
@@ -84,7 +84,6 @@ void Request::parseRequest(const std::string &raw_request) {
     size_t pos = 0;
     while ((pos = headers_str.find("\r\n")) != std::string::npos)
         headers_str.erase(pos, 1); // Enlève le \r
-    
 
     std::istringstream issh(headers_str);
     std::string line;
@@ -103,7 +102,6 @@ void Request::parseRequest(const std::string &raw_request) {
     }
 
     if (!isChunked(raw_request)) {
-        //TODO: check body size ?? with max_size
         body = raw_request.substr(separator + 4);
         if (headers.count("Content-Length")) {
             size_t len = std::atoi(headers["Content-Length"].c_str());
@@ -115,10 +113,11 @@ void Request::parseRequest(const std::string &raw_request) {
     } else {
         std::string tmp = raw_request.substr(separator + 4);
         body = decodeChunk(tmp);
-        //TODO: check body size ?? with max_size
-        headers["Content-length"] = body.size();
-    }
 
+        std::ostringstream oss;
+        oss << body.size();
+        headers["Content-Length"] = oss.str();
+    }
     if (isCGI())
         parseCgi_env();
 }
@@ -215,7 +214,7 @@ void Request::parseCgi_env() {
 }
 
 void Request::addToCgiEnv(std::string key, std::string val) {
-  cgi_env[key] = val;
+    cgi_env[key] = val;
 }
 
 void Request::clear() {}

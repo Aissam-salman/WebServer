@@ -6,7 +6,7 @@
 /*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/07/01 12:05:10 by alamjada          #+#    #+#             */
-/*   Updated: 2026/07/11 10:30:29 by alamjada         ###   ########.fr       */
+/*   Updated: 2026/07/12 12:34:48 by alamjada         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -69,8 +69,8 @@ pid_t pipe_and_fork(int pipe_body[2], int pipe_resp[2]) {
     throw std::runtime_error(err);
   }
   if (pipe(pipe_resp) == -1) {
+    close(pipe_body[0]);
     close(pipe_body[1]);
-    close(pipe_body[2]);
     std::string err = std::string("pipe: ").append(strerror(errno));
     logError(err);
     throw std::runtime_error(err);
@@ -78,6 +78,10 @@ pid_t pipe_and_fork(int pipe_body[2], int pipe_resp[2]) {
   pid_t pid = fork();
 
   if (pid < 0) {
+    close(pipe_body[0]);
+    close(pipe_resp[0]);
+    close(pipe_body[1]);
+    close(pipe_resp[1]);
     std::string err = std::string("fork: ").append(strerror(errno));
     logError(err);
     throw std::runtime_error(err);
