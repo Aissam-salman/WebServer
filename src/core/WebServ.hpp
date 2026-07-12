@@ -10,9 +10,9 @@
 #include <vector>
 
 // Owns every Server (virtual host), every Listener (shared host:port socket),
-// and the single poll() event loop that services all of them. The per-connection
-// state (clients, poll fds, CGI pipe mapping) lives here because it spans every
-// server, not any single one.
+// and the single poll() event loop that services all of them. The
+// per-connection state (clients, poll fds, CGI pipe mapping) lives here because
+// it spans every server, not any single one.
 class WebServ {
   private:
     std::vector<Server> _servers;
@@ -21,8 +21,8 @@ class WebServ {
     std::map<int, Client> _clients;
     std::map<int, int> _pipe_to_client;
     // TODO(discuss): list of supported CGI interpreter languages. Seeded with
-    // "python"/"php" but never read by Cgi — commented out pending a decision on
-    // whether to finish the interpreter-gating feature or drop it.
+    // "python"/"php" but never read by Cgi — commented out pending a decision
+    // on whether to finish the interpreter-gating feature or drop it.
     // std::vector<std::string> _languages_supported;
 
     WebServ(const WebServ &other);

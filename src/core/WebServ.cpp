@@ -2,12 +2,10 @@
 #include "Cgi.hpp"
 #include "Client.hpp"
 #include "Lexer.hpp"
-#include "Location.hpp"
 #include "Parser.hpp"
 #include "Request.hpp"
 #include "Response.hpp"
 #include "StaticHandler.hpp"
-#include "configutils.hpp"
 #include "utils.hpp"
 #include "errors.hpp"
 #include <arpa/inet.h>
@@ -143,6 +141,7 @@ void WebServ::handleCgi(Client &client, int fd) {
     // the pipe read-end must be non-blocking too, or a stuck cgi freezes the loop
     fcntl(pfd.fd, F_SETFL, O_NONBLOCK | FD_CLOEXEC);
     pfd.events = POLLIN;
+    pfd.revents = 0;
     _poll_fds.push_back(pfd);
     // map the pipe back to its client so readCgiPipe() can find it
     _pipe_to_client[client.getCgiPipefd()] = fd;
@@ -178,15 +177,33 @@ void WebServ::clientRead(size_t &i, int fd) {
 
     isHere = client.handleRecv();
     // peer closed the connection
-    if (!isHere)
+    if (!isHere){
         closeClient(i, fd);
+        return;
+    }
     // oversized body: keep draining into the trash
     else if (client.getStatus() == TRASH) {
         client.clearBufferRead();
     // request fully received: parse and route it
     } else if (client.getStatus() == WRITTING) {
         try {
-            client._request.parseRequest(client.getBufferRead());
+            client._request.parseRequest(client.getBufferRead()); 
+
+            // GET LOCATION MATCH WITH URL, AND ADD SCRIPT FILENAME TO RUN
+            //
+            // EXECVE
+            Location loc = StaticHandler::findLocation(
+                _servers[0].getLocations(), client._request.getResource());
+
+            std::map<std::string, std::string>::const_iterator script_name =
+                client._request.getCgi_env().find("SCRIPT_NAME");
+
+            if (script_name != client._request.getCgi_env().end()) {
+                std::string root_doc =
+                    StaticHandler::resolvePath(loc, script_name->second);
+                client._request.addToCgiEnv("SCRIPT_FILENAME", root_doc);
+            }
+
 
             if (client._request.isCGI())
                 handleCgi(client, fd);
