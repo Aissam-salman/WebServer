@@ -105,10 +105,10 @@ void WebServ::readCgiPipe(size_t &i, int fd) {
             std::string resp = buildHttpResponse(client.getBufferCgi());
             client.setResponse(resp);
             client.setStatus(WRITTING);
-            _pipe_to_client.erase(fd);
-            closeClient(i, fd);
             switchFdsToPollout(client_fd);
         }
+        _pipe_to_client.erase(fd);
+        closeClient(i, fd);
     }
 }
 
