@@ -52,9 +52,10 @@ pollfd Client::getPollfd(void) { return _poll_listen; }
 bool Client::handleRecv(void) {
   char buffer[STD_BUFFER];
   ssize_t n = recv(_poll_listen.fd, buffer, STD_BUFFER, 0);
-  if (n < 0)
-    throw std::runtime_error("500");
-  if (n == 0)
+  // poll() flagged this fd readable, so recv() should not block. The 42 subject
+  // forbids inspecting errno after recv(), so we can't distinguish EAGAIN from a
+  // real error: on any n <= 0 we just close the connection (like a peer EOF).
+  if (n <= 0)
     return (_status = DONE, false);
 
   if (_status == TRASH) {
@@ -129,8 +130,10 @@ bool Client::handleSend(void) {
   ssize_t n = send(_poll_listen.fd, _buffer_send.c_str() + _offset_send,
                    _buffer_send.size() - _offset_send, 0);
 
-  if (n < 0)
-    throw std::runtime_error("500");
+  // Same rule as handleRecv: poll() flagged POLLOUT, errno is off-limits, so a
+  // negative return means the socket is unusable -> close the connection.
+  if (n <= 0)
+    return (_status = DONE, false);
   _offset_send += n;
 
   // all is send ??
