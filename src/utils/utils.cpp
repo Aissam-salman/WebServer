@@ -6,8 +6,10 @@
 #include <fstream>
 #include <sstream>
 
+// STREAM MANIPULATOR: RESET THE COLOR THEN PRINT A NEWLINE
 std::ostream &endofline(std::ostream &os) { return os << RESET << std::endl; }
 
+// PARSE A STRING INTO A SIZE_T
 size_t strToInt(std::string str) {
   size_t val = 0;
   std::stringstream s(str);
@@ -15,6 +17,7 @@ size_t strToInt(std::string str) {
   return val;
 }
 
+// DEBUG-PRINT THE ALLOWED METHODS FROM A BITMASK
 void	printSetMethods(int flag) {
     std::cout << BOLD_CYAN << " === ALLOWED METHODS ===\n";
     if (flag & GET)
@@ -50,10 +53,12 @@ bool    isValidKey(const std::string &key, const std::string keys_list[], const 
     return (false);
 }
 
+// TRUE IF PATH ENDS WITH SUFFIX
 bool	endsWith(const std::string& path, const std::string& suffix) {
 	return (path.size() >= suffix.size() && path.compare(path.size() - suffix.size(), suffix.size(), suffix) == 0);
 }
 
+// APPEND A TIMESTAMPED ERROR LINE TO THE LOG FILE
 void logError(std::string &msg) {
 	std::ofstream log_file_path("logs/server_ws_errors.log", std::ios::app);
 	if (log_file_path.is_open()){
@@ -62,6 +67,7 @@ void logError(std::string &msg) {
 	}
 }
 
+// TURN RAW CGI OUTPUT INTO A FULL HTTP/1.1 RESPONSE
 const std::string buildHttpResponse(const std::string &cgi_output) {
   size_t sep_pos = cgi_output.find("\r\n\r\n");
   size_t sep_len = 4;
@@ -111,7 +117,7 @@ const std::string buildHttpResponse(const std::string &cgi_output) {
   return resp.str();
 }
 
-//root vient des error_pages directement
+//ROOT VIENT DES ERROR_PAGES DIRECTEMENT
 Response    buildErrorResponse(int code, const MapIntStr& error_pages)
 {
     if (error_pages.count(code)) {
@@ -131,6 +137,7 @@ Response    buildErrorResponse(int code, const MapIntStr& error_pages)
     return Response(code, body.str(), "text/html");}
 
 
+// EXTRACT THE MULTIPART BOUNDARY VALUE FROM A CONTENT-TYPE HEADER
 std::string extractBoundary(std::string header_content_type) {
   std::string word_start = "boundary=";
   std::string boundary;

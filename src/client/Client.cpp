@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Client.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
+/*   By: fardeau <fardeau@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/20 18:40:45 by alamjada          #+#    #+#             */
-/*   Updated: 2026/07/11 15:56:16 by alamjada         ###   ########.fr       */
+/*   Updated: 2026/07/12 11:44:01 by fardeau          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,13 +17,16 @@
 #include <cstdlib>
 #include <ctime>
 #include <iostream>
-#include <stdexcept>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
 
+// ==== ~TORS ====
+
+// DEFAULT CLIENT: EMBEDDED REQUEST WITH PLACEHOLDER CONNECTION INFO
 Client::Client(void) : _request("8080", "0", "0000", "www") {}
 
+// FROM AN ACCEPTED FD: START IN READING AND ARM THE POLLFD FOR POLLIN
 Client::Client(int fd)
     : _status(READING), _offset_send(0), _request("8080", "0", "0000", "www") {
   _poll_listen.fd = fd;
@@ -31,6 +34,7 @@ Client::Client(int fd)
   _poll_listen.revents = 0;
 }
 
+// FROM AN FD + PARSED REQUEST (DEFAULT MAX BODY SIZE)
 Client::Client(int fd, Request rq)
     : _status(READING), _offset_send(0), _max_body_size(20000000),_request(rq) {
   _poll_listen.fd = fd;
@@ -38,6 +42,7 @@ Client::Client(int fd, Request rq)
   _poll_listen.revents = 0;
 }
 
+// FROM AN FD + PARSED REQUEST + PER-SERVER MAX BODY SIZE
 Client::Client(int fd, Request rq, long max_body_size)
     : _status(READING), _offset_send(0), _max_body_size(max_body_size),_request(rq) {
   _poll_listen.fd = fd;
@@ -45,26 +50,30 @@ Client::Client(int fd, Request rq, long max_body_size)
   _poll_listen.revents = 0;
 }
 
+// COPY CTOR: DELEGATE TO THE COMPILER-GENERATED ASSIGNMENT
 Client::Client(const Client &src) : _request(src._request) { *this = src; }
 
+// DESTRUCTOR
 Client::~Client(void) {}
 
+// RETURN THE CLIENT'S POLLFD (COPY) FOR REGISTRATION IN THE POLL SET
 pollfd Client::getPollfd(void) { return _poll_listen; }
 
+// RECV ONE CHUNK; UPDATE STATE; RETURN FALSE WHEN THE CONNECTION MUST CLOSE
 bool Client::handleRecv(void) {
   char buffer[STD_BUFFER];
   ssize_t n = recv(_poll_listen.fd, buffer, STD_BUFFER, 0);
-  // poll() flagged this fd readable, so recv() should not block. The 42 subject
-  // forbids inspecting errno after recv(), so we can't distinguish EAGAIN from a
-  // real error: on any n <= 0 we just close the connection (like a peer EOF).
+  // n <= 0: peer closed or socket unusable (errno is off-limits) -> close
   if (n <= 0)
     return (_status = DONE, false);
 
+  // draining an oversized body: just count the bytes down
   if (_status == TRASH) {
     _counter_trash -= n;
     return  true;
   }
 
+  // accumulate and flip to WRITTING once the whole request has arrived
   _buffer_read.append(buffer, n);
 
   if (isRequestCompleted())
@@ -72,11 +81,14 @@ bool Client::handleRecv(void) {
   return true;
 }
 
+// TELL WHETHER THE FULL REQUEST (HEADERS + EXPECTED BODY) HAS BEEN RECEIVED
 bool Client::isRequestCompleted(void) {
+  // need the end of headers before anything else
   size_t header_end = _buffer_read.find("\r\n\r\n");
   if (header_end == std::string::npos)
     return false;
 
+  // content-length body: complete once we hold that many body bytes
   size_t header_contentLength_pos = _buffer_read.find("Content-Length:");
   if (header_contentLength_pos != std::string::npos &&
       header_contentLength_pos < header_end) {
@@ -85,9 +97,10 @@ bool Client::isRequestCompleted(void) {
     std::string lenString = _buffer_read.substr(len_start, len_end - len_start);
     size_t len = strToInt(lenString);
 
-    
+
     size_t body_size = _buffer_read.size() - (header_end + 4);
 
+    // announced or received body over the limit -> trash the rest
     if (static_cast<long>(len) > _max_body_size) {
       _status = TRASH;
       _counter_trash = static_cast<long>(len) - static_cast<long>(body_size);
@@ -114,14 +127,13 @@ bool Client::isRequestCompleted(void) {
   return true;
 }
 
-// Single choke point for every response (static / CGI / error / 413), so the
-// access log lives here: one line per served request -> "[timestamp] code peer".
+// STORE THE RESPONSE, ARM POLLOUT, AND EMIT ONE ACCESS-LOG LINE
 void Client::setResponse(std::string &resp) {
   _buffer_send = resp;
   _offset_send = 0;
   _poll_listen.events = POLLOUT;
 
-  // Status line is "HTTP/1.x <code> <reason>": grab the token between spaces.
+  // status line is "HTTP/1.x <code> <reason>": grab the code token
   std::string code = "???";
   size_t sp = resp.find(' ');
   if (sp != std::string::npos) {
@@ -130,12 +142,12 @@ void Client::setResponse(std::string &resp) {
       code = resp.substr(sp + 1, sp2 - (sp + 1));
   }
 
+  // timestamp
   char ts[32];
   std::time_t now = std::time(NULL);
   std::strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", std::localtime(&now));
 
-  // Method/path may be empty on paths that never parsed a request (e.g. the
-  // 413 "payload too large" trash path) -> show "-" like nginx does.
+  // method/path are "-" when no request was parsed (e.g. the 413 trash path)
   const std::string &method = _request.getMethod();
   const std::string &path = _request.getResource();
   std::cout << "[" << ts << "] " << code << " " << _peer << " \""
@@ -143,20 +155,23 @@ void Client::setResponse(std::string &resp) {
             << (path.empty() ? "-" : path) << "\"" << std::endl;
 }
 
+// CURRENT CONNECTION STATE
 e_state_client Client::getStatus(void) { return _status; }
 
+// COPY OF THE PARSED REQUEST
 Request Client::getRequest(void) { return _request; }
 
+// REMAINING BYTES TO DRAIN FROM AN OVERSIZED BODY
 size_t Client::getCounterTrash(void) {
   return _counter_trash;
 }
 
+// SEND THE NEXT SLICE OF THE RESPONSE; RETURN FALSE ONCE SENT OR ON CLOSE
 bool Client::handleSend(void) {
   ssize_t n = send(_poll_listen.fd, _buffer_send.c_str() + _offset_send,
                    _buffer_send.size() - _offset_send, 0);
 
-  // Same rule as handleRecv: poll() flagged POLLOUT, errno is off-limits, so a
-  // negative return means the socket is unusable -> close the connection.
+  // n <= 0: socket unusable (errno is off-limits) -> close
   if (n <= 0)
     return (_status = DONE, false);
   _offset_send += n;
@@ -170,6 +185,7 @@ bool Client::handleSend(void) {
   return true;
 }
 
+// DROP THE READ BUFFER (USED WHILE TRASHING AN OVERSIZED BODY)
 void Client::clearBufferRead(void){
   _buffer_read.clear();
 }

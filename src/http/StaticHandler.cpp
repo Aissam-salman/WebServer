@@ -10,7 +10,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-// trouve le meilleur path pour stocker dans statichandler
+// TROUVE LE MEILLEUR PATH POUR STOCKER DANS STATICHANDLER
 Location &StaticHandler::findLocation(std::vector<Location> &locs,
                               const std::string &resource) {
   size_t best_len = 0;
@@ -27,9 +27,11 @@ Location &StaticHandler::findLocation(std::vector<Location> &locs,
   return *best;
 }
 
+// BIND THE REQUEST AND RESOLVE ITS TARGET LOCATION
 StaticHandler::StaticHandler(const Request &req, std::vector<Location> &locs)
     : _request(req), _location(findLocation(locs, req.getResource())) {}
 
+// BUILD THE ON-DISK PATH: ROOT + RESOURCE MINUS THE LOCATION PREFIX
 std::string StaticHandler::buildPath() const {
   std::string root = _location.getRootPath();
   std::string resource = _request.getResource();
@@ -48,6 +50,7 @@ std::string StaticHandler::buildPath() const {
   return root + resource;
 }
 
+// MIME TYPE ACCEPTED FOR AN UPLOAD, DERIVED FROM THE FILE EXTENSION
 std::string
 StaticHandler::getMimeTypeAllowForPost(const std::string &path) const {
   size_t dot = path.rfind('.'); // trouve le dernier '.' d'extention
@@ -69,6 +72,7 @@ StaticHandler::getMimeTypeAllowForPost(const std::string &path) const {
   return "application/octet-stream";
 }
 
+// MIME TYPE FOR A RESPONSE, DERIVED FROM THE FILE EXTENSION
 std::string StaticHandler::getMimeType(const std::string &path) const {
   size_t dot = path.rfind('.'); // trouve le dernier '.' d'extention
   if (dot == std::string::npos)
@@ -100,6 +104,7 @@ std::string StaticHandler::getMimeType(const std::string &path) const {
   return "application/octet-stream";
 }
 
+// READ A WHOLE FILE INTO A STRING (403 IF IT CANNOT BE OPENED)
 std::string StaticHandler::readFile(const std::string &path) const {
   std::ifstream file(path.c_str(),
                      std::ios::binary); // std::ios::binary a voir si necessaire
@@ -111,7 +116,7 @@ std::string StaticHandler::readFile(const std::string &path) const {
   return ss.str();
 }
 
-// verifie quon va pas plus haut que root
+// VERIFIE QUON VA PAS PLUS HAUT QUE ROOT
 bool StaticHandler::isSafePath(const std::string &path) const {
   std::string root = _location.getRootPath();
 
@@ -155,6 +160,7 @@ bool StaticHandler::isSafePath(const std::string &path) const {
   return normalized.find(root) == 0;
 }
 
+// GENERATE AN HTML DIRECTORY LISTING (AUTOINDEX)
 std::string StaticHandler::generateAutoindex(const std::string &path) const {
   DIR *dir = opendir(path.c_str());
   if (!dir)
@@ -190,6 +196,7 @@ std::string StaticHandler::generateAutoindex(const std::string &path) const {
 
 typedef std::map<std::string, std::string>::const_iterator headerIter;
 
+// TRUE IF THE UPLOAD'S DECLARED TYPE MATCHES ITS EXTENSION
 bool StaticHandler::isSafeFile(std::string &file_path,
                                std::string &file_type) const {
   std::string mimetype = this->getMimeTypeAllowForPost(file_path);
@@ -203,6 +210,7 @@ bool StaticHandler::isSafeFile(std::string &file_path,
   return false;
 }
 
+// TRUE IF THE TARGET FILE DOES NOT ALREADY EXIST (READABLE)
 bool StaticHandler::isFileAlreadyExist(std::string &file_path) const {
   if (access(file_path.c_str(), R_OK) == 0)
     return false;
@@ -211,6 +219,7 @@ bool StaticHandler::isFileAlreadyExist(std::string &file_path) const {
 
 typedef std::map< std::string, std::string>::const_iterator mapStrIter;
 
+// DISPATCH THE REQUEST: REDIRECT, METHOD CHECK, THEN SERVE / UPLOAD / DELETE
 Response StaticHandler::handle() const {
   // redirection configurée dans la location
 

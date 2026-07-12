@@ -6,6 +6,7 @@
 #include <string>
 #include <map>
 
+// MAP AN HTTP STATUS CODE TO ITS REASON PHRASE
 std::string Response::reasonPhrase(int code)
 {
     std::map<int, std::string> r;
@@ -25,11 +26,13 @@ std::string Response::reasonPhrase(int code)
     return r.count(code) ? r.at(code) : "Unknown";
 }
 
+// SET (OR OVERWRITE) ONE RESPONSE HEADER
 void    Response::setHeader(const std::string& key, const std::string& value)
 {
     _headers[key] = value;
 }
 
+// RESPONSE WITH AN EXPLICIT CONTENT-TYPE (SEEDS SERVER + DATE HEADERS)
 Response::Response(int code, const std::string& content, const std::string& mimetype)
     : _status_code(code), _body(content), _content_type(mimetype)
 {
@@ -40,6 +43,7 @@ Response::Response(int code, const std::string& content, const std::string& mime
     _headers["Date"] = buf;
 }
 
+// RESPONSE WITHOUT A CONTENT-TYPE (SEEDS SERVER + DATE HEADERS)
 Response::Response(int code, const std::string& content)
     : _status_code(code), _body(content)
 {
@@ -51,6 +55,7 @@ Response::Response(int code, const std::string& content)
 }
 
 
+// SERIALIZE THE STATUS LINE, HEADERS AND BODY INTO ONE HTTP RESPONSE STRING
 std::string Response::build() //build la reponse finale
 {
     std::ostringstream oss;

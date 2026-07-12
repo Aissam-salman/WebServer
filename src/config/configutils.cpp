@@ -1,6 +1,5 @@
 #include <string>
 #include <vector>
-#include <map>
 
 #include "utils.hpp"
 #include "Token.hpp"
@@ -18,6 +17,7 @@ const size_t      LOCATION_DIRECTIVES_SIZE = sizeof(LOCATION_DIRECTIVES) / sizeo
 const std::string SEPARATORS[] = {"{", "}", ";"};
 const size_t      SEPARATORS_SIZE = sizeof(SEPARATORS) / sizeof(SEPARATORS[0]);
 
+// TOKEN AT A GIVEN INDEX (BY REFERENCE)
 Token&	getTokenAtIndex(std::vector<Token> &tokens_vector, size_t index) {
 	return (tokens_vector[index]);
 }

@@ -12,6 +12,7 @@
 #include "Lexer.hpp"
 #include "configutils.hpp"
 
+// OPEN THE .CONF FILE, VALIDATING ITS EXTENSION AND THAT IT OPENS
 Lexer::Lexer(std::string conf_file_path): _raw_file_path(conf_file_path), _raw_conf_file(conf_file_path.c_str()) {
     if (_raw_file_path.size() < 5 || _raw_file_path.substr(_raw_file_path.size() - 5) != ".conf")
         throw std::runtime_error (ERRS_LEXER_BAD_EXTENSION);
@@ -19,6 +20,7 @@ Lexer::Lexer(std::string conf_file_path): _raw_file_path(conf_file_path), _raw_c
         throw std::runtime_error (ERRS_LEXER_FILE_OPEN + _raw_file_path);
 }
 
+// DESTRUCTOR
 Lexer::~Lexer() { }
 
 // ===== UTILS FUNCTONS =====
@@ -34,6 +36,7 @@ static std::string formatConfFile(const std::string &line) {
     return result;
 }
 
+// COPY OF THE LEXED TOKEN VECTOR
 std::vector<Token> Lexer::getTokenVector(void) { return (_tokens_vector); }
 
 // ===== METHODS =====
@@ -42,17 +45,17 @@ void    Lexer::initRawVector(void) {
     std::string line;
     int         line_nbr = 0;
 
-    // GOES THROUGH THE FILE LINE BY LINE
+    // goes through the file line by line
     while (std::getline(_raw_conf_file, line)) {
         line_nbr++;
 
-        // GETS THE FIRST NON WHITESPACE CHAR
+        // gets the first non whitespace char
         size_t first = line.find_first_not_of(" \t");
         if (first == std::string::npos || line[first] == '#')
             continue;
 
-        
-        // FORMATING THE LINE AND REMOVING ALL THE WHITESPACES -> ADD SPACES TO HAVE THEM EVERYWHERE FIRST
+
+        // formating the line and removing all the whitespaces -> add spaces to have them everywhere first
         std::istringstream clean_line(formatConfFile(line));
 
         std::string token_value;
@@ -74,6 +77,6 @@ void    Lexer::printRawConfFile(void) {
     while(std::getline(_raw_conf_file, line))
         display(line);
 
-    _raw_conf_file.clear(); // RETURN TO THE BEGININ OF THE IFSTREAM
-    _raw_conf_file.seekg(0); // RETURN TO THE BEGININ OF THE IFSTREAM
+    _raw_conf_file.clear(); // return to the beginin of the ifstream
+    _raw_conf_file.seekg(0); // return to the beginin of the ifstream
 }

@@ -8,8 +8,10 @@
 
 using namespace std;
 
+// ENTRY POINT: BUILD THE SERVER FROM ARGV[1], OPTIONALLY PRINT CONFIG, THEN RUN
 int main(int argc, char **argv) {
   try {
+    // need exactly one argument: the config path
     if (argc != 2)
       throw std::runtime_error(ERRS_ARGS_MAIN);
 
