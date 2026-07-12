@@ -17,8 +17,8 @@
 
 
 // == DEFINITIONS OF GLOBALS / TORS
-// Creates the map linked to the enum for different methods
-// Binds the string to the enum
+
+// CREATES THE MAP LINKING EACH METHOD STRING TO ITS ENUM VALUE
 static std::map<std::string, e_methods> makeMethodMap(void) {
 	std::map<std::string, e_methods> m;
 	m["GET"]     = GET;
@@ -33,8 +33,7 @@ static std::map<std::string, e_methods> makeMethodMap(void) {
 	return m;
 }
 
-// DEFINES THE DEFAULT MAP FOR METHODS (external linkage via getMethodMap);
-// The map is built once on first call and shared across translation units.
+// SHARED METHOD MAP, BUILT ONCE ON FIRST CALL (EXTERNAL LINKAGE)
 const std::map<std::string, e_methods>&	getMethodMap(void) {
 	static const std::map<std::string, e_methods> MethodMap = makeMethodMap();
 	return MethodMap;
@@ -100,7 +99,7 @@ void	Parser::expectSingleValue(void) {
 // ===== METHODS =====
 // PARSES DIRECTIVE SERVER / LOCATION
 
-// Returns the human-readable name of the scope currently being parsed
+// RETURNS THE HUMAN-READABLE NAME OF THE SCOPE CURRENTLY BEING PARSED
 static std::string	scopeName(Parser::parser_state state) {
 	switch (state) {
 		case Parser::GLOBAL:   return "global";
@@ -110,7 +109,7 @@ static std::string	scopeName(Parser::parser_state state) {
 	return "unknown";
 }
 
-// Checks the validity of the directive and builds the associated object
+// CHECKS THE DIRECTIVE VALIDITY AND BUILDS THE ASSOCIATED OBJECT
 void	Parser::parseStateDirective(size_t& index) {
 
 	// CONSTRUCTS A NEW SERVER

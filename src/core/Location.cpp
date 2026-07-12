@@ -63,6 +63,8 @@ int				Location::getReturnErrorCode(void) const { return (_return_error_code); }
 std::map<std::string, std::string>&	Location::getCgiMap(void) { return (_cgi_map); }
 
 // ==== OUTPUTS ====
+
+// DEBUG-PRINT THIS LOCATION BLOCK (ROOT, INDEX, METHODS, CGI, RETURN...)
 void	Location::printLocation(void) const {
     std::cout << BOLD_WHITE << "======== LOCATION " << _name << " ======== " << endofline;
     std::cout << BOLD_YELLOW << "ROOT PATH = " << _root_path << endofline;

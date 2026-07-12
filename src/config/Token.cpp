@@ -3,10 +3,13 @@
 #include "utils.hpp"
 #include "Token.hpp"
 
+// TOKEN FROM A RAW VALUE AND ITS SOURCE LINE
 Token::Token(std::string value, int line_nbr): _value(value), _type(DEFAULT), _line(line_nbr) {}
 
+// DESTRUCTOR
 Token::~Token() {}
 
+// TAG THE TOKEN AS {, } OR ; BASED ON ITS VALUE
 void    Token::setSeparatorType(void) {
     if (_value == "{")
         _type = OPEN_BRACKET;
@@ -17,6 +20,7 @@ void    Token::setSeparatorType(void) {
 }
 
 
+// DEBUG-PRINT ONE TOKEN (VALUE, TYPE, LINE)
 void    Token::printToken(void) const {
     display("Token value = " + _value);
     std::cout << "Token type = ";
@@ -33,6 +37,7 @@ void    Token::printToken(void) const {
     std::cout << BOLD_MAGENTA << "[LINE " << _line << "]\n" << endofline;
 }
 
+// DEBUG-PRINT EVERY TOKEN IN THE VECTOR
 void    printTokens(std::vector<Token> tokens_vector) {
     for (size_t i = 0; i < tokens_vector.size(); i++) {
         tokens_vector[i].printToken();

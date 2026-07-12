@@ -23,12 +23,14 @@
 
 typedef std::map<std::string, std::string>::const_iterator mapConstIter;
 
+// CGI FOR THIS CLIENT (WITH THE LIST OF SUPPORTED LANGUAGES)
 Cgi::Cgi(std::vector<std::string> ls, Client &client)
     : _languagesSupported(ls), _client(client) {}
 
+// DESTRUCTOR
 Cgi::~Cgi(void) {}
 
-// Environment variable needed by cgi convention
+// ENVIRONMENT VARIABLE NEEDED BY CGI CONVENTION
 std::vector<char *> Cgi::createEnvp(std::vector<std::string> &env_strings) {
   mapConstIter it = _client._request.getCgi_env().begin();
   mapConstIter ite = _client._request.getCgi_env().end();
@@ -46,6 +48,7 @@ std::vector<char *> Cgi::createEnvp(std::vector<std::string> &env_strings) {
   return envp;
 }
 
+// BUILD THE ARGV ARRAY (THE SCRIPT RESOURCE THEN NULL)
 std::vector<char *> Cgi::createArg(void) {
   std::vector<char *> arg;
   arg.push_back(const_cast<char *>((_client._request.getResource().c_str())));
@@ -53,6 +56,7 @@ std::vector<char *> Cgi::createArg(void) {
   return arg;
 }
 
+// CONTENT_LENGTH FROM THE CGI ENVIRONMENT AS AN INT
 int Cgi::getContentLength(void) {
   std::string content_length_s =
       _client._request.getCgi_env().at("CONTENT_LENGTH");
@@ -62,6 +66,7 @@ int Cgi::getContentLength(void) {
   return ct;
 }
 
+// CREATE THE TWO PIPES AND FORK (THROWS ON ANY FAILURE)
 pid_t pipe_and_fork(int pipe_body[2], int pipe_resp[2]) {
   if (pipe(pipe_body) == -1) {
     std::string err = std::string("pipe: ").append(strerror(errno));
@@ -85,6 +90,7 @@ pid_t pipe_and_fork(int pipe_body[2], int pipe_resp[2]) {
   return pid;
 }
 
+// CHILD SIDE: WIRE PIPES TO STDIN/STDOUT AND EXECVE THE SCRIPT
 void Cgi::childExec(int pipe_body[2], int pipe_resp[2], std::vector<char *> arg,
                     std::vector<char *> envp) {
   dup2(pipe_body[0], STDIN_FILENO);
@@ -100,6 +106,7 @@ void Cgi::childExec(int pipe_body[2], int pipe_resp[2], std::vector<char *> arg,
   _exit(1);
 }
 
+// PARENT SIDE: WRITE THE BODY, KEEP THE RESPONSE PIPE, MARK READING_CGI
 void Cgi::dadaExec(int pipe_body[2], int pipe_resp[2], pid_t pid) {
   close(pipe_body[0]);
   close(pipe_resp[1]);
@@ -118,6 +125,7 @@ void Cgi::dadaExec(int pipe_body[2], int pipe_resp[2], pid_t pid) {
   _client.setStatus(READING_CGI);
 }
 
+// RUN THE CGI: BUILD ENV/ARGV, PIPE+FORK, THEN CHILD EXEC OR PARENT SETUP
 void Cgi::run(void) {
 	//INFO: env_strings is here to keep the pointer alive after createEnvp and don't lose the env
   std::vector<std::string> env_strings;

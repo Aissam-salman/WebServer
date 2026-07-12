@@ -26,12 +26,11 @@
 
 bool WebServ::_running = true;
 
-// Format an accepted peer address as "A.B.C.D:port" WITHOUT inet_ntoa (not in
-// the 42 allowed-functions list): ntohl/ntohs are allowed, so we pull the four
-// octets out of the host-order address ourselves.
+// FORMAT A PEER ADDRESS AS "A.B.C.D:PORT" (INET_NTOA IS NOT SUBJECT-ALLOWED)
 static std::string formatPeer(const struct sockaddr_in &addr) {
     unsigned long ip = ntohl(addr.sin_addr.s_addr);
     unsigned int port = ntohs(addr.sin_port);
+    // build the dotted-quad by hand from the host-order address
     std::ostringstream oss;
     oss << ((ip >> 24) & 0xFF) << '.' << ((ip >> 16) & 0xFF) << '.'
         << ((ip >> 8) & 0xFF) << '.' << (ip & 0xFF) << ':' << port;
@@ -39,16 +38,17 @@ static std::string formatPeer(const struct sockaddr_in &addr) {
 }
 
 // ==== ~TORS ====
-// Builds the whole runtime from a config file: lex -> parse into servers ->
-// gather the shared listeners. Process-global concerns (signal handling) live
-// here, not in any single Server.
+
+// BUILD THE RUNTIME FROM A CONFIG FILE: LEX -> PARSE SERVERS -> GATHER LISTENERS
 WebServ::WebServ(const char *config_path) {
+    // lex + parse the config into the server vector
     Lexer lexer(config_path);
     lexer.initRawVector();
 
     Parser parser(lexer.getTokenVector(), _servers);
     parser.initServers();
 
+    // collect the shared host:port listeners across all servers
     _listeners = gatherListeners(_servers);
 
     // TODO(discuss): CGI interpreter languages, see WebServ.hpp.
@@ -60,18 +60,22 @@ WebServ::WebServ(const char *config_path) {
 
 WebServ::~WebServ() {}
 
+// SIGINT HANDLER: FLIP THE RUN FLAG SO THE EVENT LOOP EXITS CLEANLY
 void WebServ::handle_sigint(int) {
     WebServ::_running = false;
     std::cerr << "SIGNAL RECEIVED" << std::endl;
 }
 
 // ==== OUTPUTS ====
+
+// PRINT EVERY SERVER BLOCK AND THE SHARED LISTENERS
 void WebServ::printConfig(void) {
     for (size_t i = 0; i < _servers.size(); i++)
         _servers[i].printServer();
     printListeners(_listeners);
 }
 
+// SWITCH A CLIENT'S POLLFD TO POLLOUT SO ITS RESPONSE CAN BE SENT
 void WebServ::switchFdsToPollout(int client_fd) {
     for (size_t j = 0; j < _poll_fds.size(); j++) {
         if (_poll_fds[j].fd == client_fd) {
@@ -81,9 +85,7 @@ void WebServ::switchFdsToPollout(int client_fd) {
     }
 }
 
-/*
- * read pipe from execve stdout, and switch to POLLOUT to send response http
- */
+// READ CGI STDOUT FROM THE PIPE; ON EOF BUILD THE RESPONSE AND SWITCH TO POLLOUT
 void WebServ::readCgiPipe(size_t &i, int fd) {
     int client_fd = _pipe_to_client[fd];
     Client &client = _clients[client_fd];
@@ -92,9 +94,11 @@ void WebServ::readCgiPipe(size_t &i, int fd) {
     if (n < 0) {
         throw std::runtime_error("500");
     }
+    // still streaming: accumulate stdout
     if (n > 0) {
         client.appendToBufferCgi(buf, n);
     } else if (n == 0) {
+        // eof: reap the child, build the response, close the pipe, flush client
         waitpid(client.getPid(), NULL, WNOHANG);
         std::string resp = buildHttpResponse(client.getBufferCgi());
         client.setResponse(resp);
@@ -104,19 +108,14 @@ void WebServ::readCgiPipe(size_t &i, int fd) {
     }
 }
 
-// create client class, and poll_fd for client and add to pollfds
+// CREATE THE CLIENT AND ITS POLLFD, THEN ADD IT TO THE POLL SET (NO PEER)
 void WebServ::acceptNewClient(int client_fd) {
     acceptNewClient(client_fd, "");
 }
 
-// Same as above, but records the peer's "IP:port" on the Client so the access
-// log (Client::setResponse) can attribute each response to a client.
+// SAME, BUT RECORDS THE PEER'S "IP:PORT" ON THE CLIENT FOR THE ACCESS LOG
 void WebServ::acceptNewClient(int client_fd, const std::string &peer) {
-
-    // Non-blocking is mandatory: recv()/handleSend() run on this fd inside the
-    // single poll() loop, so a blocking socket would let one slow peer stall the
-    // whole server. Subject rule: fcntl is allowed ONLY as F_SETFL with
-    // O_NONBLOCK / FD_CLOEXEC (no F_GETFL, no F_SETFD) — OR both into one call.
+    // non-blocking is mandatory so one slow peer can't stall the whole loop
     fcntl(client_fd, F_SETFL, O_NONBLOCK | FD_CLOEXEC);
     // TODO: pick Server by Host header / listener instead of a global max size.
     _clients[client_fd] =
@@ -125,17 +124,14 @@ void WebServ::acceptNewClient(int client_fd, const std::string &peer) {
     _poll_fds.push_back(_clients[client_fd].getPollfd());
 }
 
+// CLOSE A CLIENT FD AND DROP IT FROM THE CLIENT MAP AND THE POLL SET
 void WebServ::closeClient(size_t &i, int fd) {
     close(fd);
     _clients.erase(fd);
     _poll_fds.erase(_poll_fds.begin() + i--);
 }
 
-// send client to cgi execve, with request already parsed
-// and add to pollfds,
-// i add to pipe_to_client to keep the stdout pipe of execve, for the response
-// from cgi script (non bloquant)
-// associate the pipe with client
+// FORK/EXEC THE CGI AND REGISTER ITS OUTPUT PIPE IN THE POLL SET
 void WebServ::handleCgi(Client &client, int fd) {
     // TODO(discuss): was Cgi(_languages_supported, client); passing an empty
     // list for now since that member is commented out (see WebServ.hpp).
@@ -143,15 +139,15 @@ void WebServ::handleCgi(Client &client, int fd) {
     cgi.run();
     pollfd pfd;
     pfd.fd = client.getCgiPipefd();
-    // This pipe read end goes into the poll() set, so it must be non-blocking too:
-    // a blocking read on a slow/stuck CGI would freeze the whole loop. Same subject
-    // rule — one F_SETFL call, O_NONBLOCK | FD_CLOEXEC OR'd together.
+    // the pipe read-end must be non-blocking too, or a stuck cgi freezes the loop
     fcntl(pfd.fd, F_SETFL, O_NONBLOCK | FD_CLOEXEC);
     pfd.events = POLLIN;
     _poll_fds.push_back(pfd);
+    // map the pipe back to its client so readCgiPipe() can find it
     _pipe_to_client[client.getCgiPipefd()] = fd;
 }
 
+// SERVE A STATIC REQUEST: BUILD THE RESPONSE AND SWITCH TO POLLOUT
 void WebServ::handleReq(Client &client, int i) {
     // TODO: pick Server by Host header / listener instead of always _servers[0].
     StaticHandler handler(client._request, _servers[0].getLocations());
@@ -161,9 +157,9 @@ void WebServ::handleReq(Client &client, int i) {
     _poll_fds[i].events = POLLOUT;
 }
 
-// if catch std::runtime_error in clientRead catch
-// TODO : Discuss : Only using the server[0] error page when we have 
+// BUILD AN ERROR RESPONSE FROM A THROWN STATUS CODE AND SWITCH TO POLLOUT
 void WebServ::responseError(std::runtime_error &e, int i, Client &client) {
+    // the exception message carries the http status code (default 500)
     int code = std::atoi(e.what());
     if (code == 0)
         code = 500;
@@ -174,15 +170,19 @@ void WebServ::responseError(std::runtime_error &e, int i, Client &client) {
     _poll_fds[i].events = POLLOUT;
 }
 
+// ON POLLIN: RECV BYTES, PARSE WHEN COMPLETE, DISPATCH TO CGI OR STATIC HANDLER
 void WebServ::clientRead(size_t &i, int fd) {
     Client &client = _clients[fd];
     bool isHere;
 
     isHere = client.handleRecv();
+    // peer closed the connection
     if (!isHere)
         closeClient(i, fd);
+    // oversized body: keep draining into the trash
     else if (client.getStatus() == TRASH) {
         client.clearBufferRead();
+    // request fully received: parse and route it
     } else if (client.getStatus() == WRITTING) {
         try {
             client._request.parseRequest(client.getBufferRead());
@@ -195,6 +195,7 @@ void WebServ::clientRead(size_t &i, int fd) {
             responseError(e, i, client);
         }
     }
+    // finished trashing an oversized body: answer 413
     if (client.getCounterTrash() <= 0 && client.getStatus() == TRASH) {
         Response rp = Response(413, "Playload Too Large");
         std::string ct = rp.build();
@@ -203,6 +204,7 @@ void WebServ::clientRead(size_t &i, int fd) {
     }
 }
 
+// ON POLLOUT: FLUSH THE RESPONSE; CLOSE THE CLIENT ONCE IT IS FULLY SENT
 void WebServ::clientWrite(size_t &i, int fd) {
     Client &client = _clients[fd];
     bool isDone = client.handleSend();
@@ -211,44 +213,21 @@ void WebServ::clientWrite(size_t &i, int fd) {
     }
 }
 
-// Called once after every poll() wake-up. poll() has just filled in the
-// .revents field of each pollfd; our job here is to walk the whole set and
-// react to every fd that became ready. We handle THREE kinds of fd, all living
-// in the same _poll_fds array:
-//   1. CGI pipe fds     -> present in _pipe_to_client (pipe read-end <- CGI
-//   stdout)
-//   2. listening fds    -> not a client and not a pipe (a bound server socket)
-//   3. client conn fds  -> present in _clients (an accepted TCP connection)
+// WALK THE POLL SET AFTER EACH WAKE-UP AND SERVICE EVERY READY FD
 void WebServ::loopPollFds(void) {
-
-    // Indexed loop (not an iterator) on purpose: closeClient() erases entries
-    // from _poll_fds and does `i--`, so the container is mutated mid-iteration.
-    // We also re-check .size() each turn because acceptNewClient()/handleCgi()
-    // push_back new fds while we loop.
+    // indexed loop: closeClient() erases entries and does i--, so we mutate
+    // the container mid-iteration and re-check size() each turn
     for (size_t i = 0; i < _poll_fds.size(); i++) {
         int fd = _poll_fds[i].fd;
 
-        // .revents == 0 -> poll() reported nothing happened on this fd this
-        // round. Skip it; only fds with a pending event are worth handling.
+        // nothing happened on this fd this round
         if (!_poll_fds[i].revents)
             continue;
 
-        // --- Case 1: this fd is a CGI output pipe
-        // ------------------------------- The key exists in _pipe_to_client,
-        // i.e. it maps this pipe's read-end back to the client that launched
-        // the CGI. Data (or EOF) is ready from the script's stdout;
-        // readCgiPipe() accumulates it and, on EOF, builds the HTTP response
-        // and flips the client to POLLOUT.
+        // case 1: a cgi output pipe has data or eof
         if (_pipe_to_client.count(fd)) {
             readCgiPipe(i, fd);
-
-            // --- Case 2: this fd is a listening socket
-            // ------------------------------ Not a client (count == 0) and
-            // (from the else-if order) not a pipe either, so it must be one of
-            // our bound listeners. A POLLIN here means a brand-new connection
-            // is waiting: accept() it and register the new client fd. NOTE (CP3
-            // TODO): we don't yet know WHICH Listener this fd belongs to, so
-            // the accepted client can't carry its candidate servers yet.
+        // case 2: a listening socket has a new connection to accept
         } else if (_clients.count(fd) == 0) {
             if (_poll_fds[i].revents & POLLIN) {
                 struct sockaddr_in addr;
@@ -256,43 +235,35 @@ void WebServ::loopPollFds(void) {
                 int client_fd =
                     accept(fd, reinterpret_cast<struct sockaddr *>(&addr),
                            &addrlen);
-                if (client_fd <
-                    0) // accept failed (e.g. client vanished): ignore
+                // accept failed (client vanished): ignore
+                if (client_fd < 0)
                     continue;
-                acceptNewClient(
-                    client_fd,
-                    formatPeer(addr)); // create Client + add its fd to _poll_fds
+                acceptNewClient(client_fd, formatPeer(addr));
             }
-
-            // --- Case 3: this fd is an established client connection
-            // -----------------
+        // case 3: an established client connection
         } else {
-            // POLLIN: the client sent bytes -> read/parse the request (may
-            // dispatch to CGI or build a response, and switch the fd to POLLOUT
-            // when ready).
+            // client sent bytes: read/parse the request
             if (_poll_fds[i].revents & POLLIN)
                 clientRead(i, fd);
-            // POLLOUT: the socket is writable -> flush (part of) the response;
-            // closeClient() once everything has been sent.
+            // socket writable: flush (part of) the response
             else if (_poll_fds[i].revents & POLLOUT) {
                 clientWrite(i, fd);
-                // POLLHUP/POLLERR: peer hung up or the socket errored -> tear
-                // it down.
+            // peer hung up or socket errored: tear it down
             } else if (_poll_fds[i].revents & (POLLHUP | POLLERR)) {
                 closeClient(i, fd);
             }
         }
     }
+    // reap any finished cgi children
     while (waitpid(-1, NULL, WNOHANG) > 0)
         ;
 }
 
-// RUNS THE SERVER
-// Binds every listener, registers them in the poll set, then loops forever
-// servicing all fds across all servers.
+// RUN THE SERVER: BIND LISTENERS, REGISTER THEM, THEN LOOP FOREVER
 void WebServ::run(void) {
     setupListeners(_listeners);
 
+    // register every listener socket in the poll set
     for (size_t i = 0; i < _listeners.size(); i++) {
         pollfd pfd;
         pfd.fd = _listeners[i].getSocket().getSocketFd();
@@ -301,6 +272,7 @@ void WebServ::run(void) {
         _poll_fds.push_back(pfd);
     }
 
+    // event loop
     while (_running) {
         int ret = poll(&_poll_fds[0], _poll_fds.size(), TIMEOUT);
         if (ret == -1 && _running)

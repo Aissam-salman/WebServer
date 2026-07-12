@@ -56,6 +56,8 @@ void Server::addErrorPage(int code, std::string path) {
 }
 
 // ==== OUTPUTS ====
+
+// DEBUG-PRINT THE ERROR-PAGE MAP
 void Server::printErrorPages(void) {
     std::cout << BOLD_CYAN << "ERROR PAGES" << endofline;
     for (MapIntStr::const_iterator it = _error_pages.begin();
@@ -64,6 +66,7 @@ void Server::printErrorPages(void) {
     }
 }
 
+// DEBUG-PRINT THE SERVER: NAME, ERROR PAGES, SOCKETS, LOCATIONS
 void Server::printServer(void) {
     display("\n[ ==== GLOBAL INFOS ==== ]");
     display("SERVER NAME = " + _name);
@@ -91,7 +94,7 @@ std::vector<Server *> &Listener::getLinkedServers(void) {
     return (_linked_servers_vector);
 }
 
-// Looks for an existing listener already bound to this host:port.
+// FIND AN EXISTING LISTENER BOUND TO THIS HOST:PORT (NULL IF NONE)
 Listener *findListener(std::vector<Listener> &listeners_vector,
                        std::string host, int port) {
     for (size_t i = 0; i < listeners_vector.size(); i++) {
@@ -102,8 +105,7 @@ Listener *findListener(std::vector<Listener> &listeners_vector,
     return (NULL);
 }
 
-// Walks every server and its sockets, and builds one listener per unique
-// host:port, linking every server that shares it (virtual hosts).
+// BUILD ONE LISTENER PER UNIQUE HOST:PORT, LINKING SERVERS THAT SHARE IT
 std::vector<Listener> gatherListeners(std::vector<Server> &servers_vector) {
     std::vector<Listener> listener_vectors;
     std::string host;
@@ -119,8 +121,7 @@ std::vector<Listener> gatherListeners(std::vector<Server> &servers_vector) {
             port = sockets_vector[j].getPort();
             Listener *listener_ptr = findListener(listener_vectors, host, port);
 
-            // this host:port already has a listener -> just link this server to
-            // it
+            // this host:port already has a listener -> link this server to it
             if (listener_ptr != NULL)
                 listener_ptr->getLinkedServers().push_back(&servers_vector[i]);
             // otherwise create a new listener for it
@@ -134,6 +135,7 @@ std::vector<Listener> gatherListeners(std::vector<Server> &servers_vector) {
     return (listener_vectors);
 }
 
+// DEBUG-PRINT EVERY LISTENER AND ITS LINKED SERVERS
 void printListeners(std::vector<Listener> &listeners) {
     for (size_t i = 0; i < listeners.size(); i++) {
         std::cout << BOLD_CYAN << "LISTENER NBR " << i << endofline;
@@ -148,8 +150,7 @@ void printListeners(std::vector<Listener> &listeners) {
     }
 }
 
-// Binds and starts listening on every gathered listener's socket.
-// Free function because it works across all servers, not a single one.
+// BIND AND START LISTENING ON EVERY GATHERED LISTENER'S SOCKET
 void setupListeners(std::vector<Listener> &listeners) {
     for (size_t i = 0; i < listeners.size(); i++) {
         Socket &socket = listeners[i].getSocket();
