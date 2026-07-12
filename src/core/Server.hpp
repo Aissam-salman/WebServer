@@ -66,6 +66,7 @@ class Listener {
 std::vector<Listener> gatherListeners(std::vector<Server> &servers_vector);
 Listener *findListener(std::vector<Listener> &listeners_vector,
                        std::string host, int port);
+Listener *findListenerByFd(std::vector<Listener> &listeners_vector, int fd);
 void printListeners(std::vector<Listener> &listeners);
 void setupListeners(std::vector<Listener> &listeners);
 

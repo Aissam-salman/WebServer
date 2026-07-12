@@ -57,6 +57,11 @@ WebServ::WebServ(const char *config_path) {
     // _languages_supported.push_back("php");
 
     signal(SIGINT, handle_sigint);
+    // a CGI child that exits/closes stdin before we finish writing its body
+    // would otherwise kill the whole server with the default SIGPIPE action;
+    // ignoring it makes write() report EPIPE instead, which dadaExec() already
+    // turns into a normal 500 response
+    signal(SIGPIPE, SIG_IGN);
 }
 
 WebServ::~WebServ() {}
@@ -109,19 +114,62 @@ void WebServ::readCgiPipe(size_t &i, int fd) {
     }
 }
 
+
+// // SAME, BUT RECORDS THE PEER'S "IP:PORT" ON THE CLIENT FOR THE ACCESS LOG
+void WebServ::acceptNewClient(int client_fd, const std::string &peer) {
+    // non-blocking is mandatory so one slow peer can't stall the whole loop
+    fcntl(client_fd, F_SETFL, O_NONBLOCK | FD_CLOEXEC);
+    // TODO: pick Server by Host header / listener instead of a global max size.
+
+
+    _clients[client_fd] =
+        Client(client_fd, Request(), _servers[0].getMaxBodySize());
+    _clients[client_fd].setPeer(peer);
+    _poll_fds.push_back(_clients[client_fd].getPollfd());
+}
+
+Server &WebServ::resolveServer(Client &client) {
+    Listener *listener = client.getListener();
+    if (listener == NULL || listener->getLinkedServers().empty())
+        return (_servers[0]);
+
+    std::vector<Server *> &candidates = listener->getLinkedServers();
+
+    std::map<std::string, std::string>::const_iterator hit =
+        client._request.getHeaders().find("Host");
+
+    std::string host = (hit != client._request.getHeaders().end()) ? hit->second : "";
+    size_t colon = host.find(':');
+    if (colon != std::string::npos)
+        host = host.substr(0, colon);
+
+    for (size_t i = 0; i < candidates.size(); i++) {
+        if (candidates[i]->getServerName() == host)
+            return (*candidates[i]);
+    }
+    return (*candidates[0]); // no Host match -> nginx-style default server
+}
+
 // CREATE THE CLIENT AND ITS POLLFD, THEN ADD IT TO THE POLL SET (NO PEER)
 void WebServ::acceptNewClient(int client_fd) {
     acceptNewClient(client_fd, "");
 }
 
-// SAME, BUT RECORDS THE PEER'S "IP:PORT" ON THE CLIENT FOR THE ACCESS LOG
-void WebServ::acceptNewClient(int client_fd, const std::string &peer) {
-    // non-blocking is mandatory so one slow peer can't stall the whole loop
+void WebServ::acceptNewClient(int client_fd, int listen_fd) {
+    acceptNewClient(client_fd, listen_fd, "");
+}
+
+void WebServ::acceptNewClient(int client_fd, int listen_fd, const std::string &peer) {
     fcntl(client_fd, F_SETFL, O_NONBLOCK | FD_CLOEXEC);
-    // TODO: pick Server by Host header / listener instead of a global max size.
-    _clients[client_fd] =
-        Client(client_fd, Request(), _servers[0].getMaxBodySize());
+
+    Listener *listener = findListenerByFd(_listeners, listen_fd);
+    Server *server = &_servers[0]; // last-resort fallback, config guarantees >=1 server
+    if (listener != NULL && !listener->getLinkedServers().empty())
+        server = listener->getLinkedServers()[0];
+
+    _clients[client_fd] = Client(client_fd, Request(), server->getMaxBodySize());
     _clients[client_fd].setPeer(peer);
+    _clients[client_fd].setListener(listener);
     _poll_fds.push_back(_clients[client_fd].getPollfd());
 }
 
@@ -198,7 +246,7 @@ void WebServ::clientRead(size_t &i, int fd) {
     }
     // finished trashing an oversized body: answer 413
     if (client.getCounterTrash() <= 0 && client.getStatus() == TRASH) {
-        Response rp = Response(413, "Playload Too Large");
+        Response rp = Response(413, "Payload Too Large");
         std::string ct = rp.build();
         client.setResponse(ct);
         _poll_fds[i].events = POLLOUT;
@@ -239,7 +287,8 @@ void WebServ::loopPollFds(void) {
                 // accept failed (client vanished): ignore
                 if (client_fd < 0)
                     continue;
-                acceptNewClient(client_fd, formatPeer(addr));
+                // acceptNewClient(client_fd, formatPeer(addr));
+                acceptNewClient(client_fd, fd, formatPeer(addr));
             }
         // case 3: an established client connection
         } else {

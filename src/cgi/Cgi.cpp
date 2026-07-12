@@ -117,8 +117,8 @@ void Cgi::dadaExec(int pipe_body[2], int pipe_resp[2], pid_t pid) {
   int content_length = getContentLength();
   if (content_length > 0) {
     int len = write(pipe_body[1], _client._request.getBody().c_str(), content_length);
-    if (len < 0) {
-      std::string err = std::string("write: ").append(strerror(errno));
+    if (len <= 0) {
+      std::string err = "write to CGI stdin failed";
       logError(err);
       throw std::runtime_error(err);
     }

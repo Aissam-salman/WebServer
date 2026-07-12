@@ -63,6 +63,14 @@ server: $(SERVER_OBJ)
 
 server_conf: $(NAME)
 		./$(NAME) webserv.conf
+
+# ============== DEMO ========================
+DEMO_CONF = webserv_demo.conf
+
+demo: $(NAME)
+	@echo "→ demo site up: open http://localhost:8090/ in your browser"
+	@echo "  (also http://localhost:8130/ for the 'tchoutchou' server — Ctrl-C to stop)"
+	./$(NAME) $(DEMO_CONF)
 # client: $(CLIENT_OBJ)
 # 	$(CXX) $(CXXFLAGS) $^ -o $(CLIENT) $(LDFLAGS)
 
@@ -119,6 +127,7 @@ help:
 	@echo "Targets:"
 	@echo "  make               build $(NAME)
 	@echo "  make server_conf   build $(NAME) with working webserv.conf
+	@echo "  make demo          build $(NAME) and serve the demo site (webserv_demo.conf)
 	@echo "  make re            rebuild both from scratch"
 	@echo "  make clean         remove objects"
 	@echo "  make fclean        remove objects + binaries"
@@ -127,4 +136,4 @@ help:
 	@echo "  make leaks         rebuild debug, then run leaks (mac) / valgrind (linux)"
 	@echo "  make watch  auto-rebuild server on change (needs fswatch)"
 
-.PHONY: all clean fclean re debug asan leaks watch server_conf help
+.PHONY: all clean fclean re debug asan leaks watch server_conf demo help

@@ -381,10 +381,12 @@ Response StaticHandler::handle() const {
         throw std::runtime_error("403");
       return Response(200, readFile(index_path), getMimeType(index_path));
     }
-    // pas d'index donc autoindex ou pas ?si oui genere sinon 403
+    // pas d'index donc autoindex ou pas ? si oui genere sinon 404
+    // (repertoire sans index et sans autoindex = pas de representation -> 404,
+    //  comportement attendu par le tester d'eval)
     if (_location.getAutoIndex())
       return Response(200, generateAutoindex(path), "text/html");
-    throw std::runtime_error("403");
+    throw std::runtime_error("404");
   }
   // c'est un fichier normal (question du DELETE comment gerer(pas de fonction
   // dans le sujet?))

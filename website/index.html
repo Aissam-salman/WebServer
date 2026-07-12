@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WebServ — Departures</title>
+<style>
+  :root{
+    --paper:#e7ddc6;          /* warm timetable stock            */
+    --paper-2:#f1e9d5;        /* ticket face, a touch lighter    */
+    --ink:#182420;            /* bottle-green near-black text     */
+    --muted:#6a6350;          /* faded ink for small print       */
+    --enamel:#0f5a44;         /* station-sign enamel green        */
+    --enamel-d:#0a3f30;
+    --brass:#997327;          /* hairlines & hardware             */
+    --board:#141210;          /* arrivals board, warm near-black  */
+    --board-line:#2a2620;
+    --lamp-green:#4fbf7e;
+    --lamp-amber:#e6a723;
+    --lamp-red:#e0574a;
+    --glow:#f0c24a;           /* split-flap amber text            */
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;color:var(--ink);
+    background:var(--paper);
+    /* faint ledger ruling, like a printed timetable */
+    background-image:repeating-linear-gradient(0deg,transparent 0 33px,rgba(24,36,32,.035) 33px 34px);
+    font:16px/1.6 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1060px;margin:0 auto;padding:28px 20px 72px}
+
+  /* ---- masthead : an enamel platform sign ---- */
+  .sign{
+    background:linear-gradient(180deg,var(--enamel),var(--enamel-d));
+    border:3px solid #f3ecda;border-radius:14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.25),inset 0 0 0 1px rgba(255,255,255,.12);
+    padding:18px 24px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;
+  }
+  .sign .name{
+    font-family:"Helvetica Neue",Arial,sans-serif;font-weight:800;
+    text-transform:uppercase;letter-spacing:.14em;line-height:1;
+    font-size:clamp(30px,7vw,58px);color:#f5efdd;margin:0;
+  }
+  .sign .line{
+    font-family:"Helvetica Neue",Arial,sans-serif;font-size:12.5px;font-weight:600;
+    text-transform:uppercase;letter-spacing:.22em;color:#bfe6d5;margin-top:8px;
+  }
+  .roundel{
+    flex:0 0 auto;width:78px;height:78px;border-radius:50%;
+    border:5px solid #f3ecda;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:#b21f1f;color:#fff;font-family:"Helvetica Neue",Arial,sans-serif;line-height:1;
+  }
+  .roundel b{font-size:30px;font-weight:800}
+  .roundel span{font-size:9.5px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;margin-top:4px}
+
+  .lede{margin:22px 2px 4px;max-width:60ch;color:var(--ink);font-size:17px}
+  .lede .host{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;
+    background:var(--paper-2);border:1px solid var(--brass);border-radius:5px;padding:1px 7px;white-space:nowrap;
+  }
+
+  /* ---- section eyebrow ---- */
+  .eyebrow{
+    display:flex;align-items:center;gap:14px;margin:40px 2px 16px;
+    font-family:"Helvetica Neue",Arial,sans-serif;text-transform:uppercase;
+    letter-spacing:.26em;font-size:12.5px;font-weight:700;color:var(--enamel);
+  }
+  .eyebrow::after{content:"";flex:1;height:2px;background:
+    repeating-linear-gradient(90deg,var(--brass) 0 8px,transparent 8px 14px);opacity:.55}
+
+  /* ---- tickets grid ---- */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px;align-items:start}
+  .ticket{
+    position:relative;background:var(--paper-2);
+    border:1px solid #d6cbab;border-radius:4px;
+    box-shadow:0 1px 0 #cfc4a2,0 6px 18px -12px rgba(24,36,32,.5);
+    padding:16px 18px 16px 20px;display:flex;flex-direction:column;gap:11px;
+  }
+  /* perforated stub edge on the left, like a torn ticket */
+  .ticket::before{
+    content:"";position:absolute;left:9px;top:10px;bottom:10px;width:0;
+    border-left:2px dotted #c3b790;
+  }
+  .thead{display:flex;align-items:center;gap:10px}
+  .platform{
+    font-family:"Helvetica Neue",Arial,sans-serif;font-weight:800;font-size:13px;
+    color:#fff;background:var(--enamel);border-radius:4px;padding:4px 9px;letter-spacing:.02em;
+  }
+  .op{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;font-weight:700;
+    letter-spacing:.08em;padding:3px 7px;border-radius:4px;border:1px solid currentColor;
+  }
+  .op.get{color:#1d6b47} .op.post{color:#1c4f80} .op.del{color:#a53326} .op.sys{color:#8a6a1f}
+  .ticket h3{font-family:"Helvetica Neue",Arial,sans-serif;font-size:16px;margin:0;letter-spacing:.01em}
+  .ticket p{margin:0;color:var(--muted);font-size:14px;flex:1;font-family:inherit}
+  .ticket code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;
+    background:#e3d9bd;border-radius:3px;padding:0 4px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+  .field{display:flex;flex-direction:column;gap:3px;flex:1}
+  .field label{font-family:"Helvetica Neue",Arial,sans-serif;font-size:10.5px;text-transform:uppercase;
+    letter-spacing:.14em;color:var(--muted)}
+  input,textarea{font:14px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    background:#fbf7ec;border:1px solid #cbbf9f;border-radius:4px;color:var(--ink);padding:7px 9px;width:100%}
+  textarea{resize:vertical;min-height:40px}
+  input[type=file]{font-family:inherit}
+
+  .go{
+    font:700 13px/1 "Helvetica Neue",Arial,sans-serif;cursor:pointer;
+    background:var(--ink);color:var(--paper);border:none;border-radius:4px;
+    padding:9px 14px;letter-spacing:.04em;transition:transform .08s ease,background .15s ease;
+  }
+  .go:hover{background:var(--enamel)} .go:active{transform:translateY(1px)}
+  .go.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--ink)}
+  .go.ghost:hover{background:var(--ink);color:var(--paper)}
+  a.go{text-decoration:none;display:inline-block}
+  :focus-visible{outline:3px solid var(--brass);outline-offset:2px}
+
+  .vh{display:grid;gap:8px;margin-top:4px}
+  .vh code{display:block;background:#e3d9bd;border-radius:4px;padding:6px 9px;font-size:12.5px}
+
+  /* ---- signature : the split-flap arrivals board ---- */
+  .board{
+    margin-top:16px;background:var(--board);border-radius:8px;overflow:hidden;
+    border:1px solid #000;box-shadow:0 14px 40px -20px rgba(0,0,0,.7),inset 0 0 60px rgba(0,0,0,.6);
+  }
+  .board .cap{
+    display:flex;align-items:center;gap:12px;padding:11px 16px;background:#1c1813;
+    border-bottom:1px solid var(--board-line);
+    font-family:"Helvetica Neue",Arial,sans-serif;text-transform:uppercase;letter-spacing:.2em;
+    font-size:12px;font-weight:700;color:var(--glow);
+  }
+  .board .cap .clear{margin-left:auto;font-size:11px;letter-spacing:.12em;color:#9a8f7c;
+    background:none;border:1px solid var(--board-line);border-radius:4px;padding:4px 9px;cursor:pointer}
+  .board .cap .clear:hover{color:var(--glow);border-color:var(--glow)}
+  .cols,.arr{
+    display:grid;grid-template-columns:84px 74px 1fr 176px;gap:14px;align-items:center;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  .cols{padding:8px 16px;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:#7d7362;border-bottom:1px solid var(--board-line)}
+  #board{max-height:360px;overflow:auto}
+  .arr{padding:10px 16px;font-size:13.5px;border-bottom:1px solid #1e1a15;color:var(--glow)}
+  .arr .time{color:#c9bda3}
+  .arr .svc{font-weight:700;letter-spacing:.04em}
+  .arr .dest{color:#e9dcc0;word-break:break-word}
+  .arr .sig{display:flex;align-items:center;gap:8px;justify-content:flex-end;text-align:right}
+  .lamp{width:11px;height:11px;border-radius:50%;flex:0 0 auto;box-shadow:0 0 8px currentColor}
+  .g{color:var(--lamp-green)} .a{color:var(--lamp-amber)} .r{color:var(--lamp-red)}
+  .arr .status{white-space:nowrap;font-size:12.5px}
+  .arr .sub{grid-column:3/5;color:#9a8f7c;font-size:11.5px;margin-top:-4px;
+    white-space:pre-wrap;word-break:break-word}
+  .flap{animation:flap .22s ease-out}
+  @keyframes flap{from{transform:translateY(-6px);opacity:0}to{transform:none;opacity:1}}
+  .empty{padding:22px 16px;font-family:ui-monospace,monospace;font-size:13px;color:#6c6355;text-align:center}
+
+  footer{margin-top:44px;padding-top:16px;border-top:2px dotted #c3b790;
+    display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--muted)}
+
+  @media (max-width:560px){
+    .cols,.arr{grid-template-columns:64px 60px 1fr;}
+    .cols .h4,.arr .sig{grid-column:1/-1;justify-content:flex-start;text-align:left;margin-top:2px}
+    .arr .sub{grid-column:1/-1}
+  }
+  @media (prefers-reduced-motion:reduce){.flap{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="sign">
+    <div>
+      <h1 class="name">WebServ</h1>
+      <div class="line">HTTP/1.1 service &middot; C++98 &middot; single poll() loop</div>
+    </div>
+    <div class="roundel"><b>42</b><span>line</span></div>
+  </div>
+
+  <p class="lede">
+    A working line, not a diagram. Every service on the board below dispatches a real request down the
+    track to the server answering right now — <span class="host" id="host">&hellip;</span> — and its
+    reply pulls into the arrivals board with a signal:
+    <strong>green</strong> proceed, <strong>amber</strong> diverted, <strong>red</strong> stopped.
+    This page itself came in on the <code style="font-family:ui-monospace,monospace">/</code> line as a static file.
+  </p>
+
+  <div class="eyebrow">Departures</div>
+  <div class="grid">
+
+    <!-- STATIC -->
+    <div class="ticket">
+      <div class="thead"><span class="platform">/</span><span class="op get">GET</span></div>
+      <h3>Static files</h3>
+      <p>Plain file serving with the right MIME type and status — the timetable's core service.</p>
+      <div class="row">
+        <button class="go" onclick="req('GET','/')">GET /</button>
+        <button class="go ghost" onclick="req('GET','/files/hello.txt')">GET a .txt</button>
+      </div>
+    </div>
+
+    <!-- AUTOINDEX -->
+    <div class="ticket">
+      <div class="thead"><span class="platform">/files</span><span class="op get">GET</span></div>
+      <h3>Autoindex</h3>
+      <p>No index file here, so <code>autoindex on</code> prints the directory as a live listing.</p>
+      <div class="row">
+        <button class="go" onclick="req('GET','/files/')">GET /files/</button>
+        <a class="go ghost" href="/files" target="_blank" rel="noopener">Open listing</a>
+      </div>
+    </div>
+
+    <!-- REDIRECT -->
+    <div class="ticket">
+      <div class="thead"><span class="platform">/old</span><span class="op sys">301</span></div>
+      <h3>Diversion</h3>
+      <p>The <code>/old</code> line is closed and returns <code>301</code> — traffic is diverted to
+         <code>/files</code>. The board shows where you actually arrive.</p>
+      <div class="row">
+        <button class="go" onclick="req('GET','/old')">GET /old</button>
+        <a class="go ghost" href="/old" target="_blank" rel="noopener">Follow it</a>
+      </div>
+    </div>
+
+    <!-- ERRORS -->
+    <div class="ticket">
+      <div class="thead"><span class="platform">signals</span><span class="op sys">4xx</span></div>
+      <h3>Stop signals</h3>
+      <p>An unknown path meets the custom <code>404</code> page; the wrong method on <code>/</code>
+         is held at <code>405</code>.</p>
+      <div class="row">
+        <button class="go" onclick="req('GET','/does-not-exist')">Trigger 404</button>
+        <button class="go ghost" onclick="req('DELETE','/')">405 on /</button>
+      </div>
+    </div>
+
+    <!-- CGI READ -->
+    <div class="ticket">
+      <div class="thead"><span class="platform">/cgi-bin</span><span class="op get">GET</span></div>
+      <h3>CGI &mdash; read the register</h3>
+      <p>A Python CGI over SQLite. Read every article, filter by language, or fetch one by id.</p>
+      <div class="row">
+        <button class="go" onclick="req('GET','/cgi-bin/serve.py')">All</button>
+        <button class="go ghost" onclick="req('GET','/cgi-bin/serve.py?lang=fr')">?lang=fr</button>
+        <button class="go ghost" onclick="req('GET','/cgi-bin/serve.py/article/1')">/article/1</button>
+      </div>
+    </div>
+
+    <!-- CGI WRITE -->
+    <div class="ticket">
+      <div class="thead"><span class="platform">/cgi-bin</span><span class="op post">POST</span></div>
+      <h3>CGI &mdash; file an entry</h3>
+      <p>Post JSON; the CGI inserts a row and books it in with <code>201 Created</code> and the new id.</p>
+      <div class="field"><label>Title</label><input id="a-title" value="Night mail"></div>
+      <div class="row" style="margin-top:2px">
+        <div class="field"><label>Lang</label><input id="a-lang" value="en"></div>
+      </div>
+      <div class="field"><label>Content</label><textarea id="a-content">Filed live through the WebServ CGI.</textarea></div>
+      <div class="row"><button class="go" onclick="createArticle()">POST article</button></div>
+    </div>
+
+    <!-- CGI DELETE -->
+    <div class="ticket">
+      <div class="thead"><span class="platform">/cgi-bin</span><span class="op del">DELETE</span></div>
+      <h3>CGI &mdash; strike a record</h3>
+      <p>Remove a row by id. File one above, then strike the id it hands back.</p>
+      <div class="row">
+        <div class="field"><label>Id</label><input id="del-id" value="1"></div>
+        <button class="go" onclick="req('DELETE','/cgi-bin/serve.py/'+encodeURIComponent(gv('del-id')))">DELETE</button>
+      </div>
+    </div>
+
+    <!-- UPLOAD -->
+    <div class="ticket">
+      <div class="thead"><span class="platform">/uploads</span><span class="op post">POST</span></div>
+      <h3>Parcel office</h3>
+      <p>Send a file by multipart to <code>/uploads</code> (up to <code>50M</code>). It's stored and
+         appears in the depot listing.</p>
+      <div class="field"><input type="file" id="upfile"></div>
+      <div class="row">
+        <button class="go" onclick="upload()">Upload</button>
+        <a class="go ghost" href="/uploads" target="_blank" rel="noopener">See depot</a>
+      </div>
+    </div>
+
+    <!-- VHOSTS -->
+    <div class="ticket">
+      <div class="thead"><span class="platform">:8110</span><span class="op sys">vhost</span></div>
+      <h3>One track, two names</h3>
+      <p>Two servers share the same port. The <code>Host</code> header is the headcode that decides
+         which one takes the train.</p>
+      <div class="vh">
+        <code>curl -H "Host: localhost"  :8110/</code>
+        <code>curl -H "Host: tchoutchou" :8110/</code>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="eyebrow">Arrivals</div>
+  <div class="board">
+    <div class="cap">
+      <span>Live arrivals</span>
+      <span style="color:#9a8f7c;letter-spacing:.12em;font-size:11px">real responses, as they land</span>
+      <button class="clear" onclick="clearBoard()">Clear</button>
+    </div>
+    <div class="cols">
+      <span class="h4">Time</span><span class="h4">Service</span>
+      <span class="h4">Destination</span><span class="h4" style="text-align:right">Signal</span>
+    </div>
+    <div id="board"><div class="empty">Board clear — dispatch a service above to see it arrive.</div></div>
+  </div>
+
+  <footer>
+    <span>WebServ &middot; 42</span>
+    <span>issued from ./website/index.html</span>
+  </footer>
+</div>
+
+<script>
+  var board = document.getElementById('board');
+  document.getElementById('host').textContent = location.host;
+
+  function gv(id){ return document.getElementById(id).value; }
+  function esc(s){ return String(s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+  function now(){ var d=new Date(); function p(n){return (n<10?'0':'')+n;} return p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds()); }
+  function path(u){ try{ return new URL(u,location.href).pathname + new URL(u,location.href).search; }catch(e){ return u; } }
+
+  function clearBoard(){ board.innerHTML = '<div class="empty">Board clear — dispatch a service above to see it arrive.</div>'; }
+
+  function place(method, url){
+    var e = board.querySelector('.empty'); if(e) e.remove();
+    var row = document.createElement('div');
+    row.className = 'arr flap';
+    row.innerHTML =
+      '<span class="time">'+now()+'</span>'+
+      '<span class="svc">'+method+'</span>'+
+      '<span class="dest">'+esc(path(url))+'</span>'+
+      '<span class="sig"><span class="lamp a">&#9679;</span><span class="status a">signalled&hellip;</span></span>';
+    board.appendChild(row);
+    board.scrollTop = board.scrollHeight;
+    return row;
+  }
+
+  function land(row, cls, code, text, sub){
+    var sig = row.querySelector('.sig');
+    sig.innerHTML = '<span class="lamp '+cls+'">&#9679;</span>'+
+                    '<span class="status '+cls+'">'+esc(code)+(text? '  '+esc(text):'')+'</span>';
+    if(sub){
+      var s = document.createElement('span'); s.className='sub'; s.textContent = sub; row.appendChild(s);
+    }
+  }
+
+  async function req(method, url, opts){
+    opts = opts || {};
+    var row = place(method, url);
+    var t0 = performance.now();
+    try{
+      var res = await fetch(url,{method:method, headers:opts.headers, body:opts.body});
+      var ms  = Math.round(performance.now()-t0);
+      var text = await res.text();
+      var cls = res.status>=400 ? 'r' : (res.status>=300||res.redirected) ? 'a' : 'g';
+      var word = res.statusText || '';
+      var sub = ms+'ms · '+(res.headers.get('content-type')||'');
+      if(res.redirected){
+        word = 'diverted';
+        sub = 'arrived at ' + path(res.url) + '   ·   ' + sub;
+      }
+      var body = text.trim();
+      if(body){ body = body.length>360 ? body.slice(0,360)+' … ('+text.length+' bytes)' : body; sub += '\n'+body; }
+      land(row, cls, res.status, word, sub);
+    }catch(err){
+      land(row, 'r', 'signal lost', '', err.message);
+    }
+    board.scrollTop = board.scrollHeight;
+  }
+
+  function createArticle(){
+    var payload = JSON.stringify({title:gv('a-title'), lang:gv('a-lang'), content:gv('a-content')});
+    req('POST','/cgi-bin/serve.py',{headers:{'Content-Type':'application/json'}, body:payload});
+  }
+
+  function upload(){
+    var f = document.getElementById('upfile').files[0];
+    if(!f){ var r=place('POST','/uploads'); land(r,'a','no file','','Choose a parcel to send first.'); return; }
+    var fd = new FormData(); fd.append('file', f, f.name);
+    req('POST','/uploads',{body:fd});
+  }
+</script>
+</body>
+</html>

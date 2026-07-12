@@ -105,6 +105,14 @@ Listener *findListener(std::vector<Listener> &listeners_vector,
     return (NULL);
 }
 
+Listener *findListenerByFd(std::vector<Listener> &listeners_vector, int fd) {
+    for (size_t i = 0; i < listeners_vector.size(); i++) {
+        if (listeners_vector[i].getSocket().getSocketFd() == fd)
+            return (&listeners_vector[i]);
+    }
+    return (NULL);
+}
+
 // BUILD ONE LISTENER PER UNIQUE HOST:PORT, LINKING SERVERS THAT SHARE IT
 std::vector<Listener> gatherListeners(std::vector<Server> &servers_vector) {
     std::vector<Listener> listener_vectors;
