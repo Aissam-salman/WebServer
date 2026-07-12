@@ -31,6 +31,7 @@ class Client {
     std::string _buffer_cgi;
     long _max_body_size;
     size_t _counter_trash;
+    std::string _peer; // "IP:port" of the connected client, for access logging
 
   public:
     Client(void);
@@ -60,6 +61,7 @@ class Client {
     void setStatus(enum e_state_client e) { _status = e; }
     void setCgiPipeFd(int fd) { _cgi_pipe_fd = fd; }
     void setResponse(std::string &resp);
+    void setPeer(const std::string &peer) { _peer = peer; }
     void setPid(pid_t pid) { _pid = pid; }
     void appendToBufferCgi(char *msg, int n) { _buffer_cgi.append(msg, n); }
 };

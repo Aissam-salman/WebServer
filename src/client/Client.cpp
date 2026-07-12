@@ -15,6 +15,8 @@
 #include "utils.hpp"
 #include <cstddef>
 #include <cstdlib>
+#include <ctime>
+#include <iostream>
 #include <stdexcept>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -112,10 +114,33 @@ bool Client::isRequestCompleted(void) {
   return true;
 }
 
+// Single choke point for every response (static / CGI / error / 413), so the
+// access log lives here: one line per served request -> "[timestamp] code peer".
 void Client::setResponse(std::string &resp) {
   _buffer_send = resp;
   _offset_send = 0;
   _poll_listen.events = POLLOUT;
+
+  // Status line is "HTTP/1.x <code> <reason>": grab the token between spaces.
+  std::string code = "???";
+  size_t sp = resp.find(' ');
+  if (sp != std::string::npos) {
+    size_t sp2 = resp.find(' ', sp + 1);
+    if (sp2 != std::string::npos)
+      code = resp.substr(sp + 1, sp2 - (sp + 1));
+  }
+
+  char ts[32];
+  std::time_t now = std::time(NULL);
+  std::strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", std::localtime(&now));
+
+  // Method/path may be empty on paths that never parsed a request (e.g. the
+  // 413 "payload too large" trash path) -> show "-" like nginx does.
+  const std::string &method = _request.getMethod();
+  const std::string &path = _request.getResource();
+  std::cout << "[" << ts << "] " << code << " " << _peer << " \""
+            << (method.empty() ? "-" : method) << " "
+            << (path.empty() ? "-" : path) << "\"" << std::endl;
 }
 
 e_state_client Client::getStatus(void) { return _status; }

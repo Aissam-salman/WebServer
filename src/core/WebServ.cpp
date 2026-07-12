@@ -9,11 +9,13 @@
 #include "StaticHandler.hpp"
 #include "configutils.hpp"
 #include "utils.hpp"
+#include <arpa/inet.h>
 #include <csignal>
 #include <cstddef>
 #include <cstdlib>
 #include <fcntl.h>
 #include <iostream>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <sys/poll.h>
@@ -23,6 +25,18 @@
 #include <vector>
 
 bool WebServ::_running = true;
+
+// Format an accepted peer address as "A.B.C.D:port" WITHOUT inet_ntoa (not in
+// the 42 allowed-functions list): ntohl/ntohs are allowed, so we pull the four
+// octets out of the host-order address ourselves.
+static std::string formatPeer(const struct sockaddr_in &addr) {
+    unsigned long ip = ntohl(addr.sin_addr.s_addr);
+    unsigned int port = ntohs(addr.sin_port);
+    std::ostringstream oss;
+    oss << ((ip >> 24) & 0xFF) << '.' << ((ip >> 16) & 0xFF) << '.'
+        << ((ip >> 8) & 0xFF) << '.' << (ip & 0xFF) << ':' << port;
+    return oss.str();
+}
 
 // ==== ~TORS ====
 // Builds the whole runtime from a config file: lex -> parse into servers ->
@@ -92,6 +106,12 @@ void WebServ::readCgiPipe(size_t &i, int fd) {
 
 // create client class, and poll_fd for client and add to pollfds
 void WebServ::acceptNewClient(int client_fd) {
+    acceptNewClient(client_fd, "");
+}
+
+// Same as above, but records the peer's "IP:port" on the Client so the access
+// log (Client::setResponse) can attribute each response to a client.
+void WebServ::acceptNewClient(int client_fd, const std::string &peer) {
 
     // Non-blocking is mandatory: recv()/handleSend() run on this fd inside the
     // single poll() loop, so a blocking socket would let one slow peer stall the
@@ -101,6 +121,7 @@ void WebServ::acceptNewClient(int client_fd) {
     // TODO: pick Server by Host header / listener instead of a global max size.
     _clients[client_fd] =
         Client(client_fd, Request(), _servers[0].getMaxBodySize());
+    _clients[client_fd].setPeer(peer);
     _poll_fds.push_back(_clients[client_fd].getPollfd());
 }
 
@@ -230,12 +251,17 @@ void WebServ::loopPollFds(void) {
             // the accepted client can't carry its candidate servers yet.
         } else if (_clients.count(fd) == 0) {
             if (_poll_fds[i].revents & POLLIN) {
-                int client_fd = accept(fd, NULL, NULL);
+                struct sockaddr_in addr;
+                socklen_t addrlen = sizeof(addr);
+                int client_fd =
+                    accept(fd, reinterpret_cast<struct sockaddr *>(&addr),
+                           &addrlen);
                 if (client_fd <
                     0) // accept failed (e.g. client vanished): ignore
                     continue;
                 acceptNewClient(
-                    client_fd); // create Client + add its fd to _poll_fds
+                    client_fd,
+                    formatPeer(addr)); // create Client + add its fd to _poll_fds
             }
 
             // --- Case 3: this fd is an established client connection
