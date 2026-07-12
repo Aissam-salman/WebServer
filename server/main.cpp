@@ -48,6 +48,7 @@ int main(int argc, char **argv) {
 #if RUN == 1
     servers_vector[0].run(listeners);
 #endif
+
   } catch (runtime_error &e) {
     std::cerr << RED << e.what() << endofline;
   } catch (exception &e) {
