@@ -1,13 +1,16 @@
 NAME   = WebServ
 
 # ============== DIRECTORIES =================
-SRC_DIR    = server
-UTILS_DIR  = utils
+SRC_DIR    = src
+CORE_DIR   = $(SRC_DIR)/core
+HTTP_DIR   = $(SRC_DIR)/http
 CONFIG_DIR = $(SRC_DIR)/config
 CGI_DIR    = $(SRC_DIR)/cgi
 CLIENT_DIR = $(SRC_DIR)/client
+UTILS_DIR  = $(SRC_DIR)/utils
 
-INCLUDES   = -I $(SRC_DIR) -I $(UTILS_DIR) -I $(CONFIG_DIR) -I $(CGI_DIR) -I $(CLIENT_DIR)
+INCLUDES   = -I $(CORE_DIR) -I $(HTTP_DIR) -I $(CONFIG_DIR) \
+             -I $(CGI_DIR) -I $(CLIENT_DIR) -I $(UTILS_DIR)
 
 CXX      = c++
 CXXFLAGS = -Wall -Wextra -Werror -Wswitch \
@@ -19,27 +22,29 @@ LDFLAGS  =
 
 # ============== SRC-FILES ===================
 SERVER_SRC = \
-    $(SRC_DIR)/main.cpp \
-    $(SRC_DIR)/Server.cpp \
-    $(SRC_DIR)/Location.cpp \
-    $(SRC_DIR)/Socket.cpp \
-    $(SRC_DIR)/Request.cpp \
-		$(SRC_DIR)/Response.cpp \
+    $(CORE_DIR)/main.cpp \
+    $(CORE_DIR)/WebServ.cpp \
+    $(CORE_DIR)/Server.cpp \
+    $(CORE_DIR)/Location.cpp \
+    $(CORE_DIR)/Socket.cpp \
+    $(HTTP_DIR)/Request.cpp \
+    $(HTTP_DIR)/Response.cpp \
+    $(HTTP_DIR)/StaticHandler.cpp \
     $(CONFIG_DIR)/Lexer.cpp \
     $(CONFIG_DIR)/Token.cpp \
     $(CONFIG_DIR)/Parser.cpp \
+    $(CONFIG_DIR)/ParserException.cpp \
     $(CONFIG_DIR)/configutils.cpp \
     $(CGI_DIR)/Cgi.cpp \
     $(CLIENT_DIR)/Client.cpp \
-    $(UTILS_DIR)/utils.cpp \
-		$(SRC_DIR)/StaticHandler.cpp
+    $(UTILS_DIR)/utils.cpp
 
 OBJDIR     = objs
 SERVER_OBJ = $(patsubst %.cpp,$(OBJDIR)/%.o,$(SERVER_SRC))
 DEPS       = $(SERVER_OBJ:.o=.d) $(CLIENT_OBJ:.o=.d)
 
 # all project headers, found recursively (used by watch-server)
-HEADERS    = $(shell find $(SRC_DIR) $(UTILS_DIR) -name '*.hpp')
+HEADERS    = $(shell find $(SRC_DIR) -name '*.hpp')
 
 # ============== DEBUG / SANITIZER FLAGS =====
 DEBUG_FLAGS = -g3 -O0
@@ -72,6 +77,9 @@ fclean: clean
 re: fclean all
 
 # ============== MEMORY-CHECK TARGETS ========
+
+CONF_FILE= webserv.conf
+
 debug: CXXFLAGS += $(DEBUG_FLAGS)
 debug: re
 
@@ -85,12 +93,12 @@ asan: re
 
 leaks: debug
 	@if [ "$$(uname)" = "Darwin" ]; then \
-		echo "macOS: leaks --atExit — $(SERVER)"; \
-		MallocStackLogging=1 leaks --atExit -- ./$(SERVER); \
+		echo "macOS: leaks --atExit — $(NAME)"; \
+		MallocStackLogging=1 leaks --atExit -- ./$(NAME) $(CONF_FILE); \
 	else \
-		echo "Linux: valgrind --leak-check=full — $(SERVER)"; \
+		echo "Linux: valgrind --leak-check=full — $(NAME)"; \
 		valgrind --leak-check=full --show-leak-kinds=all \
-		         --track-origins=yes --error-exitcode=1 ./$(SERVER); \
+		         --track-origins=yes --error-exitcode=1 ./$(NAME) $(CONF_FILE); \
 	fi
 
 # ============== WATCH MODE ==================

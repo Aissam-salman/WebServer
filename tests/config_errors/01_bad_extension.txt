@@ -1,0 +1,10 @@
+server {
+    listen 0.0.0.0:8090;
+    server_name localhost;
+
+    location / {
+        root ./www;
+        index index.html;
+        methods GET;
+    }
+}
