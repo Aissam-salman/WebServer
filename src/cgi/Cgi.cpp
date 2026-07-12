@@ -6,7 +6,7 @@
 /*   By: alamjada <alamjada@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/07/01 12:05:10 by alamjada          #+#    #+#             */
-/*   Updated: 2026/07/12 12:34:48 by alamjada         ###   ########.fr       */
+/*   Updated: 2026/07/12 22:38:58 by salman           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -111,19 +111,17 @@ void Cgi::childExec(int pipe_body[2], int pipe_resp[2], std::vector<char *> arg,
 }
 
 // PARENT SIDE: WRITE THE BODY, KEEP THE RESPONSE PIPE, MARK READING_CGI
-void Cgi::dadaExec(int pipe_body[2], int pipe_resp[2], pid_t pid) {
+void Cgi::ParentExec(int pipe_body[2], int pipe_resp[2], pid_t pid) {
   close(pipe_body[0]);
   close(pipe_resp[1]);
   int content_length = getContentLength();
   if (content_length > 0) {
-    int len = write(pipe_body[1], _client._request.getBody().c_str(), content_length);
-    if (len < 0) {
-      std::string err = std::string("write: ").append(strerror(errno));
-      logError(err);
-      throw std::runtime_error(err);
-    }
+    _client.setCgiPipeFdWrite(pipe_body[1]);
+    _client.appendToBufferCgiWrite(_client._request.getBody().c_str()
+                                   , _client._request.getBody().size());
+  } else {
+    close(pipe_body[1]);
   }
-  close(pipe_body[1]);
   _client.setCgiPipeFd(pipe_resp[0]);
   _client.setPid(pid);
   _client.setStatus(READING_CGI);
@@ -143,7 +141,7 @@ void Cgi::run(void) {
   if (pid == 0) {
     childExec(pipe_body, pipe_resp, arg, envp);
   } else {
-    dadaExec(pipe_body, pipe_resp, pid);
+    ParentExec(pipe_body, pipe_resp, pid);
     return;
   }
 }

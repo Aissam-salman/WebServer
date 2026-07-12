@@ -3,6 +3,7 @@
 
 #include "Client.hpp"
 #include "Server.hpp"
+#include <cstddef>
 #include <map>
 #include <stdexcept>
 #include <string>
@@ -20,6 +21,7 @@ class WebServ {
     std::vector<pollfd> _poll_fds;
     std::map<int, Client> _clients;
     std::map<int, int> _pipe_to_client;
+    std::map<int, int> _pipe_to_client_write;
     // TODO(discuss): list of supported CGI interpreter languages. Seeded with
     // "python"/"php" but never read by Cgi — commented out pending a decision
     // on whether to finish the interpreter-gating feature or drop it.
@@ -32,6 +34,7 @@ class WebServ {
     void acceptNewClient(int listen_fd);
     void acceptNewClient(int listen_fd, const std::string &peer);
     void readCgiPipe(size_t &i, int fd);
+    void writeCgiPipe(size_t &i, int fd);
     void clientRead(size_t &i, int fd);
     void clientWrite(size_t &i, int fd);
     void closeClient(size_t &i, int fd);
