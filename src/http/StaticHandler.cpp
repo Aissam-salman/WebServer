@@ -171,6 +171,13 @@ std::string StaticHandler::generateAutoindex(const std::string &path) const {
     throw std::runtime_error("403");
   // construit la liste  de fichiers dans le dossier bonus css jespere ca marche
   // lol
+  // base href : la resource demandee, garantie de finir par '/'
+  // (sinon le navigateur resout les liens relatifs par rapport au parent,
+  // ex: /uploads + "backtracking.pdf" -> /backtracking.pdf au lieu de /uploads/backtracking.pdf)
+  std::string base = _request.getResource();
+  if (base.empty() || base[base.length() - 1] != '/')
+    base += '/';
+
   std::ostringstream html;
   html << "<html><head><title>Index of " << _request.getResource() << "</title>"
        << "<style>body{font-family:monospace;padding:20px}"
@@ -184,7 +191,7 @@ std::string StaticHandler::generateAutoindex(const std::string &path) const {
                                       // struct systeme dirent
     if (name == ".")
       continue;
-    html << "<a href=\"" << name;
+    html << "<a href=\"" << base << name;
     if (entry->d_type == DT_DIR) // d_type == type du repertoire(dossier ou
                                  // fichier), DT_DIR == cest un dossier ?
       html << "/";
@@ -381,10 +388,12 @@ Response StaticHandler::handle() const {
         throw std::runtime_error("403");
       return Response(200, readFile(index_path), getMimeType(index_path));
     }
-    // pas d'index donc autoindex ou pas ?si oui genere sinon 403
+    // pas d'index donc autoindex ou pas ? si oui genere sinon 404
+    // (repertoire sans index et sans autoindex = pas de representation -> 404,
+    //  comportement attendu par le tester d'eval)
     if (_location.getAutoIndex())
       return Response(200, generateAutoindex(path), "text/html");
-    throw std::runtime_error("403");
+    throw std::runtime_error("404");
   }
   // c'est un fichier normal (question du DELETE comment gerer(pas de fonction
   // dans le sujet?))

@@ -31,8 +31,7 @@ class WebServ {
     WebServ &operator=(const WebServ &other);
 
     // ==== EVENT LOOP (formerly Server::) ====
-    void acceptNewClient(int listen_fd);
-    void acceptNewClient(int listen_fd, const std::string &peer);
+    void acceptNewClient(int client_fd, int listen_fd, const std::string &peer);
     void readCgiPipe(size_t &i, int fd);
     void writeCgiPipe(size_t &i, int fd);
     void clientRead(size_t &i, int fd);
@@ -43,6 +42,8 @@ class WebServ {
     void responseError(std::runtime_error &e, int i, Client &client);
     void loopPollFds(void);
     void switchFdsToPollout(int client_fd);
+
+    Server &resolveServer(Client &client);
 
   public:
     WebServ(const char *config_path);

@@ -56,6 +56,11 @@ WebServ::WebServ(const char *config_path) {
     // _languages_supported.push_back("php");
 
     signal(SIGINT, handle_sigint);
+
+    // a CGI child that exits/closes stdin before we finish writing its body
+    // would otherwise kill the whole server with the default SIGPIPE action;
+    // ignoring it makes write() report EPIPE instead, which dadaExec() already
+    // turns into a normal 500 response
     signal(SIGPIPE, SIG_IGN);
 }
 
@@ -135,17 +140,33 @@ void WebServ::writeCgiPipe(size_t &i, int fd) {
     }
 }
 
-// CREATE THE CLIENT AND ITS POLLFD, THEN ADD IT TO THE POLL SET (NO PEER)
-void WebServ::acceptNewClient(int client_fd) { acceptNewClient(client_fd, ""); }
+Server &WebServ::resolveServer(Client &client) {
+    Listener *listener = client.getListener();
+    if (listener == NULL || listener->getLinkedServers().empty())
+        return (_servers[0]);
 
-// SAME, BUT RECORDS THE PEER'S "IP:PORT" ON THE CLIENT FOR THE ACCESS LOG
-void WebServ::acceptNewClient(int client_fd, const std::string &peer) {
+    std::map<std::string, std::string>::const_iterator hit =
+        client._request.getHeaders().find("Host");
+    std::string host = (hit != client._request.getHeaders().end()) ? hit->second : "";
+
+    return (*matchServerByHost(listener->getLinkedServers(), host));
+}
+
+// CREATE THE CLIENT AND ITS POLLFD, THEN ADD IT TO THE POLL SET.
+// Records the peer's "IP:PORT" for the access log and links the client to the
+// listener it arrived on so the right virtual host can be resolved later.
+void WebServ::acceptNewClient(int client_fd, int listen_fd, const std::string &peer) {
     // non-blocking is mandatory so one slow peer can't stall the whole loop
     fcntl(client_fd, F_SETFL, O_NONBLOCK | FD_CLOEXEC);
-    // TODO: pick Server by Host header / listener instead of a global max size.
-    _clients[client_fd] =
-        Client(client_fd, Request(), _servers[0].getMaxBodySize());
+
+    Listener *listener = findListenerByFd(_listeners, listen_fd);
+    Server *server = &_servers[0]; // last-resort fallback, config guarantees >=1 server
+    if (listener != NULL && !listener->getLinkedServers().empty())
+        server = listener->getLinkedServers()[0];
+
+    _clients[client_fd] = Client(client_fd, Request(), server->getMaxBodySize());
     _clients[client_fd].setPeer(peer);
+    _clients[client_fd].setListener(listener);
     _poll_fds.push_back(_clients[client_fd].getPollfd());
 }
 
@@ -158,6 +179,14 @@ void WebServ::closeClient(size_t &i, int fd) {
 
 // FORK/EXEC THE CGI AND REGISTER ITS OUTPUT PIPE IN THE POLL SET
 void WebServ::handleCgi(Client &client, int fd) {
+    Server &server = resolveServer(client);
+    Location &location = StaticHandler::findLocation(server.getLocations(),
+                                                       client._request.getResource());
+    std::map<std::string, e_methods>::const_iterator mit =
+        getMethodMap().find(client._request.getMethod());
+    if (mit == getMethodMap().end() || (location.getMethodFlag() & mit->second) == 0)
+        throw std::runtime_error("405");
+
     // TODO(discuss): was Cgi(_languages_supported, client); passing an empty
     // list for now since that member is commented out (see WebServ.hpp).
     Cgi cgi(std::vector<std::string>(), client);
@@ -187,9 +216,8 @@ void WebServ::handleCgi(Client &client, int fd) {
 
 // SERVE A STATIC REQUEST: BUILD THE RESPONSE AND SWITCH TO POLLOUT
 void WebServ::handleReq(Client &client, int i) {
-    // TODO: pick Server by Host header / listener instead of always
-    // _servers[0].
-    StaticHandler handler(client._request, _servers[0].getLocations());
+    Server &server = resolveServer(client);
+    StaticHandler handler(client._request, server.getLocations());
     Response response = handler.handle();
     std::string bu = response.build();
     client.setResponse(bu);
@@ -202,9 +230,7 @@ void WebServ::responseError(std::runtime_error &e, int i, Client &client) {
     int code = std::atoi(e.what());
     if (code == 0)
         code = 500;
-    // TODO: pick Server by Host header / listener instead of always
-    // _servers[0].
-    Response response = buildErrorResponse(code, _servers[0].getErrorPages());
+    Response response = buildErrorResponse(code, resolveServer(client).getErrorPages());
     std::string bu = response.build();
     client.setResponse(bu);
     _poll_fds[i].events = POLLOUT;
@@ -254,7 +280,7 @@ void WebServ::clientRead(size_t &i, int fd) {
     }
     // finished trashing an oversized body: answer 413
     if (client.getCounterTrash() <= 0 && client.getStatus() == TRASH) {
-        Response rp = Response(413, "Playload Too Large");
+        Response rp = Response(413, "Payload Too Large");
         std::string ct = rp.build();
         client.setResponse(ct);
         _poll_fds[i].events = POLLOUT;
@@ -299,7 +325,7 @@ void WebServ::loopPollFds(void) {
                     // accept failed (client vanished): ignore
                     if (client_fd < 0)
                         continue;
-                    acceptNewClient(client_fd, formatPeer(addr));
+                    acceptNewClient(client_fd, fd, formatPeer(addr));
                 }
                 // case 3: an established client connection
             } else {

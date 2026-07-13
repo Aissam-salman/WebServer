@@ -61,8 +61,16 @@ $(OBJDIR)/%.o: %.cpp
 server: $(SERVER_OBJ)
 	$(CXX) $(CXXFLAGS) $^ -o $(NAME) $(LDFLAGS)
 
-server_conf: $(NAME)
+run: $(NAME)
 		./$(NAME) webserv.conf
+
+# ============== DEMO ========================
+DEMO_CONF = webserv_demo.conf
+
+demo: $(NAME)
+	@echo "→ demo site up: open http://localhost:8090/ in your browser"
+	@echo "  (also http://localhost:8130/ for the 'tchoutchou' server — Ctrl-C to stop)"
+	./$(NAME) $(DEMO_CONF)
 # client: $(CLIENT_OBJ)
 # 	$(CXX) $(CXXFLAGS) $^ -o $(CLIENT) $(LDFLAGS)
 
@@ -101,30 +109,16 @@ leaks: debug
 		         --track-origins=yes --error-exitcode=1 ./$(NAME) $(CONF_FILE); \
 	fi
 
-# ============== WATCH MODE ==================
-watch-server:
-	@command -v fswatch >/dev/null 2>&1 || { \
-		echo "fswatch not found — install with: brew install fswatch"; \
-		exit 1; \
-	}
-	@$(MAKE) --no-print-directory server && echo "── run ──" && ./$(NAME); true
-	@echo "watching server files — Ctrl-C to stop"
-	@fswatch -o $(SERVER_SRC) $(HEADERS) | while read -r _; do \
-		clear; \
-		printf '↻ %s — rebuilding\n' "$$(date +%H:%M:%S)"; \
-		$(MAKE) --no-print-directory server && echo "── run ──" && ./$(NAME); true; \
-	done
-
 help:
 	@echo "Targets:"
 	@echo "  make               build $(NAME)
 	@echo "  make server_conf   build $(NAME) with working webserv.conf
+	@echo "  make demo          build $(NAME) and serve the demo site (webserv_demo.conf)
 	@echo "  make re            rebuild both from scratch"
 	@echo "  make clean         remove objects"
 	@echo "  make fclean        remove objects + binaries"
 	@echo "  make debug         rebuild with -g3 -O0"
 	@echo "  make asan          rebuild with AddressSanitizer + UBSan"
 	@echo "  make leaks         rebuild debug, then run leaks (mac) / valgrind (linux)"
-	@echo "  make watch  auto-rebuild server on change (needs fswatch)"
 
-.PHONY: all clean fclean re debug asan leaks watch server_conf help
+.PHONY: all clean fclean re debug asan leaks watch server_conf demo help
