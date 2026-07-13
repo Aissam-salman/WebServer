@@ -292,17 +292,16 @@ class Request:
         if self.content_length > 0:
             self.body = sys.stdin.read(self.content_length)
 
-        match self.method:
-            case "GET":
-                self.Get()
-            case "POST":
-                self.Post()
-            case "PUT":
-                self.Put()
-            case "DELETE":
-                self.Delete()
-            case _:
-                self._bad_request()
+        if self.method == "GET":
+            self.Get()
+        elif self.method == "POST":
+            self.Post()
+        elif self.method == "PUT":
+            self.Put()
+        elif self.method == "DELETE":
+            self.Delete()
+        else:
+            self._bad_request()
 
     def parse_multipart(self):
         raw = f"Content-Type: {self.content_type}\r\n\r\n{self.body}"

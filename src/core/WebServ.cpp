@@ -59,8 +59,8 @@ WebServ::WebServ(const char *config_path) {
 
     // a CGI child that exits/closes stdin before we finish writing its body
     // would otherwise kill the whole server with the default SIGPIPE action;
-    // ignoring it makes write() report EPIPE instead, which dadaExec() already
-    // turns into a normal 500 response
+    // ignoring it makes write() report EPIPE instead, which handleSendCgi()
+    // treats as a dead pipe and closes cleanly
     signal(SIGPIPE, SIG_IGN);
 }
 
@@ -114,7 +114,15 @@ void WebServ::readCgiPipe(size_t &i, int fd) {
         // eof: reap the child, build the response, close the pipe, flush client
         if (client.getPid() > 0) {
             waitpid(client.getPid(), NULL, WNOHANG);
-            std::string resp = buildHttpResponse(client.getBufferCgi());
+            std::string out = client.getBufferCgi();
+            std::string resp;
+            // empty stdout means the cgi never produced a response (execve
+            // failure, a script that can't be parsed, a crash before any
+            // output): surface it as a 500 instead of a bogus 200/empty body.
+            if (out.empty())
+                resp = buildErrorResponse(500, resolveServer(client).getErrorPages()).build();
+            else
+                resp = buildHttpResponse(out);
             client.setResponse(resp);
             client.setStatus(WRITTING);
             switchFdsToPollout(client_fd);
@@ -191,6 +199,20 @@ void WebServ::handleCgi(Client &client, int fd) {
     // list for now since that member is commented out (see WebServ.hpp).
     Cgi cgi(std::vector<std::string>(), client);
     cgi.run();
+
+    // the request is fully received; stop polling the client socket for input
+    // while the cgi runs. Otherwise a peer that half-closes its write side
+    // (a legitimate FIN, e.g. `printf ... | nc`) surfaces as recv()==0 on the
+    // client fd and closeClient()s the connection before the cgi response is
+    // sent. POLLHUP/POLLERR are still delivered regardless of events, so a full
+    // disconnect is still noticed; we re-arm POLLOUT once the response is ready.
+    for (size_t j = 0; j < _poll_fds.size(); j++) {
+        if (_poll_fds[j].fd == fd) {
+            _poll_fds[j].events = 0;
+            break;
+        }
+    }
+
     pollfd pfd;
     pfd.fd = client.getCgiPipefd();
     // the pipe read-end must be non-blocking too, or a stuck cgi freezes the

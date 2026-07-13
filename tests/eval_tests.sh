@@ -102,10 +102,17 @@ rm -f "$TMP"
 section "CGI"
 eq "CGI GET -> 200"                  200 "$(code $BASE$CGI_PATH)"
 
-# valid chunked body to CGI (curl chunks when body comes from a pipe + TE header)
-CH=$(printf 'POST %s HTTP/1.1\r\nHost: %s\r\nContent-Type: text/plain\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhello\r\n0\r\n\r\n' "$CGI_PATH" "$VHOST" \
+# valid chunked body to CGI: a JSON article the script accepts, sent as one
+# chunk. Proves webserv de-chunks the body and feeds it to the CGI's stdin
+# (a 201 means the CGI parsed the decoded JSON) — and, because nc half-closes
+# its write side on stdin EOF, it also guards the regression where that FIN
+# used to tear the connection down before the CGI response was sent.
+CH_BODY='{"title":"chunk","lang":"py","content":"hi"}'
+CH_LEN=$(printf '%s' "$CH_BODY" | wc -c | tr -d ' ')
+CH_HEX=$(printf '%x' "$CH_LEN")
+CH=$(printf 'POST %s HTTP/1.1\r\nHost: %s\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\n\r\n%s\r\n%s\r\n0\r\n\r\n' "$CGI_PATH" "$VHOST" "$CH_HEX" "$CH_BODY" \
       | nc -w 3 "$ADDR" "$PORT" | head -1 | tr -d '\r')
-case "$CH" in *200*) ok "chunked POST to CGI decoded ($CH)";; *) no "chunked POST to CGI" "got: $CH";; esac
+case "$CH" in *201*) ok "chunked POST to CGI decoded ($CH)";; *) no "chunked POST to CGI" "got: $CH";; esac
 
 # bad CGI script must not hang / crash (timeout catches a hang)
 BAD=$(code -m 5 $BASE/cgi-bin/does_not_exist.py)
