@@ -57,6 +57,8 @@ WebServ::WebServ(const char *config_path) {
     // _languages_supported.push_back("php");
 
     signal(SIGINT, handle_sigint);
+
+    // QUESTION : Need pour les CGI ou c'est bon ?
     // a CGI child that exits/closes stdin before we finish writing its body
     // would otherwise kill the whole server with the default SIGPIPE action;
     // ignoring it makes write() report EPIPE instead, which dadaExec() already
@@ -115,19 +117,6 @@ void WebServ::readCgiPipe(size_t &i, int fd) {
 }
 
 
-// // SAME, BUT RECORDS THE PEER'S "IP:PORT" ON THE CLIENT FOR THE ACCESS LOG
-void WebServ::acceptNewClient(int client_fd, const std::string &peer) {
-    // non-blocking is mandatory so one slow peer can't stall the whole loop
-    fcntl(client_fd, F_SETFL, O_NONBLOCK | FD_CLOEXEC);
-    // TODO: pick Server by Host header / listener instead of a global max size.
-
-
-    _clients[client_fd] =
-        Client(client_fd, Request(), _servers[0].getMaxBodySize());
-    _clients[client_fd].setPeer(peer);
-    _poll_fds.push_back(_clients[client_fd].getPollfd());
-}
-
 Server &WebServ::resolveServer(Client &client) {
     Listener *listener = client.getListener();
     if (listener == NULL || listener->getLinkedServers().empty())
@@ -140,16 +129,11 @@ Server &WebServ::resolveServer(Client &client) {
     return (*matchServerByHost(listener->getLinkedServers(), host));
 }
 
-// CREATE THE CLIENT AND ITS POLLFD, THEN ADD IT TO THE POLL SET (NO PEER)
-void WebServ::acceptNewClient(int client_fd) {
-    acceptNewClient(client_fd, "");
-}
-
-void WebServ::acceptNewClient(int client_fd, int listen_fd) {
-    acceptNewClient(client_fd, listen_fd, "");
-}
-
+// CREATE THE CLIENT AND ITS POLLFD, THEN ADD IT TO THE POLL SET.
+// Records the peer's "IP:PORT" for the access log and links the client to the
+// listener it arrived on so the right virtual host can be resolved later.
 void WebServ::acceptNewClient(int client_fd, int listen_fd, const std::string &peer) {
+    // non-blocking is mandatory so one slow peer can't stall the whole loop
     fcntl(client_fd, F_SETFL, O_NONBLOCK | FD_CLOEXEC);
 
     Listener *listener = findListenerByFd(_listeners, listen_fd);
@@ -284,7 +268,6 @@ void WebServ::loopPollFds(void) {
                 // accept failed (client vanished): ignore
                 if (client_fd < 0)
                     continue;
-                // acceptNewClient(client_fd, formatPeer(addr));
                 acceptNewClient(client_fd, fd, formatPeer(addr));
             }
         // case 3: an established client connection

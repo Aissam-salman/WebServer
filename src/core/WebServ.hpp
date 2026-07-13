@@ -29,9 +29,6 @@ class WebServ {
     WebServ &operator=(const WebServ &other);
 
     // ==== EVENT LOOP (formerly Server::) ====
-    void acceptNewClient(int listen_fd);
-    void acceptNewClient(int listen_fd, const std::string &peer);
-    void acceptNewClient(int client_fd, int listen_fd);
     void acceptNewClient(int client_fd, int listen_fd, const std::string &peer);
     void readCgiPipe(size_t &i, int fd);
     void clientRead(size_t &i, int fd);
